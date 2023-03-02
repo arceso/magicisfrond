@@ -4,9 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "Camera/CameraComponent.h"
+#include "ESide.h"
 #include "MyCharacterCamera.generated.h"
 
-enum class ECameraSide { LEFT, RIGHT };
 
 /**
  * 
@@ -19,11 +19,11 @@ class UMyCharacterCamera : public UCameraComponent
 	UMyCharacterCamera();
 public:
 	void HandleInput(FVector2D input);
-	void SetCameraSide(ECameraSide Side);
-	ECameraSide GetCameraSide();
+	void SetCameraSide(ESide Side);
+	ESide GetCameraSide();
 
 private:
-	ECameraSide CameraSide;
+	ESide CameraSide;
 
 	FVector RightCameraPosition,
 		LeftCameraPosition,

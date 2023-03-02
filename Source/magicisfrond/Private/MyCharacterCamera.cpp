@@ -6,7 +6,6 @@
 UMyCharacterCamera::UMyCharacterCamera() {
 	PrimaryComponentTick.bCanEverTick = true;
 	PrimaryComponentTick.bStartWithTickEnabled = true;
-	//PrimaryComponentTick.TickGroup = TG_LastDemotable;
 	SetComponentTickEnabled(true);
 	bAutoRegister = true;
 	bAutoActivate = true;
@@ -35,7 +34,7 @@ void UMyCharacterCamera::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 
 		CurrentCameraPosition = FMath::Lerp(
 			CurrentCameraPosition,
-			CameraSide == ECameraSide::LEFT ? LeftCameraPosition : RightCameraPosition,
+			CameraSide == ESide::LEFT ? LeftCameraPosition : RightCameraPosition,
 			fAccTime / fTimeToChangeSide
 		);
 		this->SetRelativeLocation(CurrentCameraPosition);
@@ -48,15 +47,15 @@ void UMyCharacterCamera::HandleInput(FVector2D input) {
 	this->SetRelativeLocation(FinalRelRotation.RotateVector(CurrentCameraPosition));
 }	
 
-void UMyCharacterCamera::SetCameraSide(ECameraSide Side) {
+void UMyCharacterCamera::SetCameraSide(ESide Side) {
 	if (Side != CameraSide) {
 		CameraSide = Side;
 		bShouldUpdateCameraPosition = true;
 		fAccTime = 0.f;
 	}
-	GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Yellow, Side == ECameraSide::LEFT ? TEXT("LEFT") : TEXT("RIGHT"));
+	GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Yellow, Side == ESide::LEFT ? TEXT("LEFT") : TEXT("RIGHT"));
 }
 
-ECameraSide UMyCharacterCamera::GetCameraSide() {
+ESide UMyCharacterCamera::GetCameraSide() {
 	return CameraSide;
 }

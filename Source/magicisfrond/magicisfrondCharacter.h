@@ -10,43 +10,14 @@
 
 class UMyCharacterCamera;
 class USpringArmComponent;
+class AMyCharacterController;
+
 UCLASS(config=Game)
 class AmagicisfrondCharacter : public ACharacter
 {
 	GENERATED_BODY()
 
-	/** MappingContext */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	class UInputMappingContext* DefaultMappingContext;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	class UInputMappingContext* WallrunMappingContext;
-
-	/** Move Input Action */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	class UInputAction* MoveAction;
-
-	/** Look Input Action */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	class UInputAction* LookAction;
-
-	/** Look Jump Action */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	class UInputAction* dbjump;
-
-	// WALLRUN
-
-	/** Move Input Action */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-		class UInputAction* WR_MoveAction;
-
-	/** Look Input Action */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-		class UInputAction* WR_LookAction;
-
-	/** Look Jump Action */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-		class UInputAction* WR_dbjumpAction;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 		double DistanceToCharacter;
@@ -70,20 +41,6 @@ public:
 protected:
 
 
-	/** Called for movement input */
-	void Move(const FInputActionValue& Value);
-
-	/** Called for looking input */
-	void Look(const FInputActionValue& Value);
-	void DBJump(const FInputActionValue& Value);
-	void EndWallrun();
-	void WR_Move(const FInputActionValue& Value);
-	void WR_Look(const FInputActionValue& Value);
-	void WR_dbjump(const FInputActionValue& Value);
-	enum E_WR_Side{LEFT = 1, RIGHT = -1, NONE = 0};
-
-	void WR_Movement(E_WR_Side side, float movement, FHitResult fhr);
-	void StartWallrun(E_WR_Side Side, FVector normal);
 
 	virtual void Landed(const FHitResult& Hit) override;
 	virtual void NotifyHit(class UPrimitiveComponent* MyComp, AActor* Other, class UPrimitiveComponent* OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit) override;
@@ -94,19 +51,8 @@ protected:
 	UUserWidget* CrosshairInstance;
 
 	UMyCharacterCamera* PlayerCamera;
-	USpringArmComponent* CameraBoom;
 
-	bool CanAirJump;
-
-	float accTimeCamera;
-	E_WR_Side CameraSide;
-
-	struct WR_DATA {
-		bool WallRuning = false;
-		E_WR_Side WR_SIDE = NONE;
-		FVector NormalHit = FVector(0,0,0);
-	};
-	WR_DATA WRData;
+	AMyCharacterController* MyController;
 
 protected:
 	// APawn interface
