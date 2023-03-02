@@ -8,27 +8,13 @@
 #include "Runtime/UMG/Public/Blueprint/UserWidget.h"
 #include "magicisfrondCharacter.generated.h"
 
-
-
+class UMyCharacterCamera;
+class USpringArmComponent;
 UCLASS(config=Game)
 class AmagicisfrondCharacter : public ACharacter
 {
 	GENERATED_BODY()
 
-	// DEFAULTs
-
-	/** Camera boom positioning the camera behind the character */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
-	class USpringArmComponent* CameraBoom;
-
-	/** Follow camera */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
-	class UCameraComponent* FollowCamera;
-
-	/** Follow camera */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
-	class UCameraComponent* CameraTwo;
-	
 	/** MappingContext */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	class UInputMappingContext* DefaultMappingContext;
@@ -83,6 +69,7 @@ public:
 
 protected:
 
+
 	/** Called for movement input */
 	void Move(const FInputActionValue& Value);
 
@@ -101,11 +88,13 @@ protected:
 	virtual void Landed(const FHitResult& Hit) override;
 	virtual void NotifyHit(class UPrimitiveComponent* MyComp, AActor* Other, class UPrimitiveComponent* OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit) override;
 	void updateDynamicUi();
-	void updateCamera(float DeltaSeconds);
 	virtual void Tick(float DeltaSeconds) override;
 	
 	UUserWidget* EnemySelectorInstance;
 	UUserWidget* CrosshairInstance;
+
+	UMyCharacterCamera* PlayerCamera;
+	USpringArmComponent* CameraBoom;
 
 	bool CanAirJump;
 
@@ -129,8 +118,8 @@ protected:
 
 public:
 	/** Returns CameraBoom subobject **/
-	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
+	// FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	/** Returns FollowCamera subobject **/
-	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
+	// FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 };
 

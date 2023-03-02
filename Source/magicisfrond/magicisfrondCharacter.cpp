@@ -10,7 +10,7 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Kismet/GameplayStatics.h"
-#include "Source/Private/MyCharacterCamera.h"	
+#include "MyCharacterCamera.h" //"Source/Private/MyCharacterCamera.h"	
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -27,7 +27,7 @@ AmagicisfrondCharacter::AmagicisfrondCharacter() :
 	bUseControllerRotationRoll = false;
 
 	GetCharacterMovement()->bOrientRotationToMovement = true;
-	GetCharacterMovement()->RotationRate = FRotator(0.0f, 500.0f, 0.0f);
+	GetCharacterMovement()->RotationRate = FRotator(-1, -1, -1);
 
 	GetCharacterMovement()->JumpZVelocity = 1000.f;
 	GetCharacterMovement()->AirControl = 90000.f;
@@ -35,21 +35,10 @@ AmagicisfrondCharacter::AmagicisfrondCharacter() :
 	GetCharacterMovement()->MinAnalogWalkSpeed = 20.f;
 	GetCharacterMovement()->BrakingDecelerationWalking = 2000.f;
 
-	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
-	CameraBoom->SetupAttachment(RootComponent);
-	CameraBoom->TargetArmLength = 400.f; //DistanceToCharacter;
-	CameraBoom->bUsePawnControlRotation = true;
-
-	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
-	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
-	FollowCamera->bUsePawnControlRotation = false;
-
-	CameraTwo = CreateDefaultSubobject<UCameraComponent>(TEXT("CameraTwo"));
-	CameraTwo->SetupAttachment(RootComponent);
-	CameraTwo->bUsePawnControlRotation = false;
-
+	PlayerCamera = CreateDefaultSubobject<UMyCharacterCamera>(TEXT("PlayerCamera"));
+	PlayerCamera->SetupAttachment(RootComponent);
+	PlayerCamera->bUsePawnControlRotation = false;
 }
-
 
 void AmagicisfrondCharacter::BeginPlay() {
 	Super::BeginPlay();
@@ -69,7 +58,7 @@ void AmagicisfrondCharacter::BeginPlay() {
 	CrosshairInstance->AddToViewport();
 	UGameViewportClient* Viewport = GetWorld()->GetGameViewport();
 	FIntPoint ViewSize = Viewport->Viewport->GetSizeXY();
-	CameraBoom->SetRelativeLocation(FVector(0, DistanceSide * 2, Height));
+	//PlayerCamera->SetRelativeLocation(FVector(-400, DistanceSide * 2, Height));
 
 	CrosshairInstance->SetRenderScale(FVector2D(.033, .05));
 	GetMovementComponent()->SetPlaneConstraintNormal(FVector(0, 0, 1));
@@ -135,8 +124,15 @@ void AmagicisfrondCharacter::Look(const FInputActionValue& Value) {
 	FVector2D LookAxisVector = Value.Get<FVector2D>();
 
 	if (Controller != nullptr) {
+
+		PlayerCamera->HandleInput(LookAxisVector);
+		
+		//RootComponent->SetRelativeRotation(
+		//	(RootComponent->GetRelativeRotation() + FRotator(LookAxisVector.Y * -1.f, LookAxisVector.X, 0.f)).Quaternion()
+		//);
+
 		AddControllerYawInput(LookAxisVector.X);
-		AddControllerPitchInput(LookAxisVector.Y);
+		//AddControllerPitchInput(LookAxisVector.Y);
 	}
 }
 
@@ -159,6 +155,7 @@ void AmagicisfrondCharacter::EndWallrun() {
 }
 
 void AmagicisfrondCharacter::WR_Movement(E_WR_Side side, float movement, FHitResult fhr) {
+	//  The snappy behavior on curved surfaces should be fixed on tick with a turnrate or sm
 	GetCharacterMovement()->StopMovementKeepPathing();
 	FRotator RotationOf90Degrees(0, -90*side, 0);
 	FRotator LeftOrRightDirection = RotationOf90Degrees.RotateVector(fhr.Normal).Rotation();
@@ -212,7 +209,7 @@ void AmagicisfrondCharacter::StartWallrun(E_WR_Side Side, FVector normal) {
 	WRData.WallRuning = true;
 	WRData.WR_SIDE = Side;
 	WRData.NormalHit = normal;
-
+	PlayerCamera->SetCameraSide(Side == LEFT ? ECameraSide::RIGHT : ECameraSide::LEFT);
 	accTimeCamera = 0.f;
 }
 
@@ -257,51 +254,6 @@ void AmagicisfrondCharacter::updateDynamicUi() {
 	}
 }
 
-void AmagicisfrondCharacter::updateCamera(float DeltaSeconds) {
-	const float timeOfLerpMS = 0.25f;
-	float disp = 0.f;
-
-	if (GEngine) {
-		FString txt = TEXT("Wall is at the NONE");
-		if (WRData.WR_SIDE== RIGHT) txt = TEXT("Wall is at the RIGHT");
-		else if (WRData.WR_SIDE == LEFT) txt = TEXT("Wall is at the LEFT");
-		GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Yellow, txt);
-	}
-
-	if (WRData.WallRuning){
-		if (accTimeCamera < timeOfLerpMS && CameraSide != NONE && CameraSide == WRData.WR_SIDE) {// )
-			accTimeCamera += DeltaSeconds;
-
-			if (GEngine) {
-				GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Cyan, FString::Printf(TEXT("ACC TIME: %f"), accTimeCamera));
-			}
-
-			bool ShouldUpdateCameraSide = timeOfLerpMS - accTimeCamera < DeltaSeconds;
-
-			disp = FMath::Lerp(0, DistanceSide * 2 * static_cast<float>(WRData.WR_SIDE), accTimeCamera / timeOfLerpMS);
-			CameraBoom->SetRelativeLocation(FVector(0, disp, Height), false, NULL, ETeleportType::None);
-			if (ShouldUpdateCameraSide) CameraSide = WRData.WR_SIDE == LEFT? RIGHT : LEFT ;
-		}
-			
-	} else {
-		/*const int length = 5000;
-		struct FHitResult OutHit;
-		APlayerCameraManager* camManager = GetWorld()->GetFirstPlayerController()->PlayerCameraManager;
-
-		const FVector Start = GetActorLocation() - (CameraBoom->GetTargetRotation().Vector() * 40);
-		const FVector End = Start + (GetActorLocation() - (CameraBoom->GetTargetRotation().Vector() * 40));*/
-		// DrawDebugLine(GetWorld(), Start, End, FColor::Cyan);
-		//	FCollisionQueryParams TraceParams(FName(TEXT("InteractTrace")), true, NULL);
-		//	TraceParams.AddIgnoredActor(this);
-		//	if (GetWorld()->LineTraceSingleByChannel(OutHit, Start, End, ECC_WorldStatic, TraceParams)) {
-		//		CameraBoom->SetRelativeLocation(LeftCameraPosition);
-		//	} else if (GetWorld()->LineTraceSingleByChannel(OutHit, Start, End, ECC_WorldStatic, TraceParams)) {
-		//		CameraBoom->SetRelativeLocation(RightCameraPosition);
-		//	}
-	}
-}
-
 void AmagicisfrondCharacter::Tick(float DeltaSeconds) {
 	updateDynamicUi();
-	updateCamera(DeltaSeconds);
 }
