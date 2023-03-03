@@ -17,12 +17,6 @@ class AMyCharacterController : public APlayerController
 
 
 public:
-	// Tech stuff
-	AMyCharacterController();
-	void BeginPlay()override;
-	void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent);
-	UMyCharacterCamera* camera;
-
 	// Peasant stuff
 	void Move(const FInputActionValue& Value);
 	void Look(const FInputActionValue& Value);
@@ -32,11 +26,19 @@ public:
 	void WR_Move(const FInputActionValue& Value);
 	void WR_Look(const FInputActionValue& Value);
 	void WR_dbjump(const FInputActionValue& Value);
-	void WR_Movement(ESide side, float movement, FHitResult fhr);
+	void WR_Movement(ESide side, FHitResult fhr);
 	void StartWallrun(ESide Side, FVector normal);
 	void EndWallrun();
+	void UpdateWallrun(FVector_NetQuantizeNormal* newNormal);
 
-	// Tech stuff pt2
+	// Tech stuff
+	AMyCharacterController();
+	void BeginPlay()override;
+	void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent);
+	UMyCharacterCamera* camera;
+
+	bool bCanAirJump;
+
 	/** INPUTS **/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 		class UInputAction* MoveAction;
@@ -60,14 +62,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 		class UInputMappingContext* WallrunMappingContext;
 
-	bool bCanAirJump;
 private:
 
 	struct WR_DATA {
 		bool WallRuning;
-		ESide WR_SIDE;
-		FVector NormalHit;
-	};
-
-	WR_DATA WRData;
+		ESide Side;
+		FVector_NetQuantizeNormal NormalHit;
+	} WRData;
+	float ACC;
 };

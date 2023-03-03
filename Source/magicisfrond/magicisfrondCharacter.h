@@ -6,6 +6,7 @@
 #include "GameFramework/Character.h"
 #include "InputActionValue.h"
 #include "Runtime/UMG/Public/Blueprint/UserWidget.h"
+#include "ESide.h"
 #include "magicisfrondCharacter.generated.h"
 
 class UMyCharacterCamera;
@@ -45,6 +46,7 @@ protected:
 	virtual void Landed(const FHitResult& Hit) override;
 	virtual void NotifyHit(class UPrimitiveComponent* MyComp, AActor* Other, class UPrimitiveComponent* OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit) override;
 	void updateDynamicUi();
+	void Wallrun(float deltaT);
 	virtual void Tick(float DeltaSeconds) override;
 	
 	UUserWidget* EnemySelectorInstance;
@@ -53,6 +55,12 @@ protected:
 	UMyCharacterCamera* PlayerCamera;
 
 	AMyCharacterController* MyController;
+
+	struct WR_DATA {
+		bool WallRuning;
+		ESide Side;
+		FVector NormalHit;
+	} WRData;
 
 protected:
 	// APawn interface

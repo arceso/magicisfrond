@@ -34,6 +34,10 @@ AmagicisfrondCharacter::AmagicisfrondCharacter() {
 	PlayerCamera = CreateDefaultSubobject<UMyCharacterCamera>(TEXT("PlayerCamera"));
 	PlayerCamera->SetupAttachment(RootComponent);
 	PlayerCamera->bUsePawnControlRotation = false;
+
+	WRData.WallRuning = false;
+	WRData.NormalHit = FVector(0, 0, 0);
+	WRData.Side = ESide::NONE;
 }
 
 
@@ -84,10 +88,19 @@ void AmagicisfrondCharacter::NotifyHit(
 	const FHitResult& Hit
 ) {
 	 {
-		if (GetActorRightVector().Dot(HitNormal) < 0.0f)
+		if (GetActorRightVector().Dot(HitNormal) < 0.0f) {
 			MyController->StartWallrun(ESide::RIGHT, HitNormal);
-		else if (GetActorRightVector().Dot(HitNormal) > 0.0f)
+			WRData.Side = ESide::RIGHT;
+			WRData.WallRuning = true;
+			WRData.NormalHit = HitNormal;
+
+		}
+		else if (GetActorRightVector().Dot(HitNormal) > 0.0f) {
 			MyController->StartWallrun(ESide::LEFT, HitNormal);
+			WRData.Side = ESide::LEFT;
+			WRData.WallRuning = true;
+			WRData.NormalHit = HitNormal;
+		}
 	}
 }
 
@@ -115,7 +128,19 @@ void AmagicisfrondCharacter::updateDynamicUi() {
 		EnemySelectorInstance->SetVisibility(ESlateVisibility::Hidden);
 	}
 }
+void AmagicisfrondCharacter::Wallrun(float deltaT) {
+	//if (WRData.WallRuning) {
+	//	struct FHitResult OutHit;
+	//	const FVector Start = GetActorLocation();
+	//	const FVector End = Start + GetActorRightVector() * (WRData.Side == ESide::RIGHT ? 1 : -1) * 100;
+	//	FCollisionQueryParams TraceParams(FName(TEXT("InteractTrace")), true, NULL);
+	//	TraceParams.AddIgnoredActor(this);
+	//	bool Target = GetWorld()->LineTraceSingleByChannel(OutHit, Start, End, ECC_WorldStatic, TraceParams);
+	//	MyController->UpdateWallrun(&(OutHit.ImpactNormal));
+	//}
+}
 
 void AmagicisfrondCharacter::Tick(float DeltaSeconds) {
 	updateDynamicUi();
+	//Wallrun(DeltaSeconds);
 }

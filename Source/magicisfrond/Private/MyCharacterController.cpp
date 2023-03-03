@@ -14,7 +14,8 @@
 AMyCharacterController::AMyCharacterController() {
 	WRData.NormalHit = FVector(0, 0, 0);
 	WRData.WallRuning = false;
-	WRData.WR_SIDE = ESide::NONE;
+	WRData.Side = ESide::NONE;
+	SetActorTickEnabled(true);
 }
 
 void AMyCharacterController::BeginPlay() {
@@ -25,7 +26,6 @@ void AMyCharacterController::BeginPlay() {
 }
 
 void AMyCharacterController::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) {
-	// Set up action bindings
 	if (UEnhancedInputComponent* EnhancedInputComponent = CastChecked<UEnhancedInputComponent>(PlayerInputComponent)) {
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AMyCharacterController::Move);
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &AMyCharacterController::Look);
@@ -37,6 +37,7 @@ void AMyCharacterController::SetupPlayerInputComponent(class UInputComponent* Pl
 }
 
 void AMyCharacterController::DBJump(const FInputActionValue& Value) {
+	//GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Red, TEXT("YES"));
 	FVector2D MovementVector = Value.Get<FVector2D>();
 	
 	if (GetCharacter()->GetCharacterMovement()->IsFalling() && bCanAirJump) {
@@ -71,7 +72,7 @@ void AMyCharacterController::Look(const FInputActionValue& Value) {
 
 void AMyCharacterController::EndWallrun() {
 	WRData.WallRuning = false;
-	//WRData.WR_SIDE = NONE;
+	WRData.Side = ESide::NONE;
 	if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer())) {
 		Subsystem->RemoveMappingContext(WallrunMappingContext);
 	}
@@ -90,48 +91,47 @@ void AMyCharacterController::StartWallrun(ESide Side, FVector normal) {
 		GetCharacter()->GetCharacterMovement()->bConstrainToPlane = true;
 		GetCharacter()->bUseControllerRotationYaw = false;
 		WRData.WallRuning = true;
-		WRData.WR_SIDE = Side;
+		WRData.Side = Side;
 		WRData.NormalHit = normal;
 		camera->SetCameraSide(Side == ESide::LEFT ? ESide::RIGHT : ESide::LEFT);
 	}
 }
 
-void AMyCharacterController::WR_Movement(ESide side, float movement, FHitResult fhr) {
+void AMyCharacterController::WR_Movement(ESide side, FHitResult fhr) {
 	GetCharacter()->GetCharacterMovement()->StopMovementKeepPathing();
-	FRotator RotationOf90Degrees(0, side == ESide::LEFT ? -90 : 90, 0);
-	FRotator LeftOrRightDirection = RotationOf90Degrees.RotateVector(fhr.Normal).Rotation();
-	FRotator newRotation(0, LeftOrRightDirection.Yaw, 0);
 
-	GetCharacter()->SetActorRotation(newRotation);
-	FVector NewLoc = FRotationMatrix(fhr.Normal.Rotation()).GetScaledAxis(EAxis::Y) * movement * 20;
+	FVector NewForward = fhr.ImpactNormal.Cross(FVector(0, 0, (side == ESide::RIGHT ? -1 : 1)));
 
-	if (side == ESide::LEFT) NewLoc = -NewLoc + GetCharacter()->GetActorLocation();
-	else NewLoc = NewLoc + GetCharacter()->GetActorLocation();
+	GetCharacter()->SetActorRotation(NewForward.Rotation());
+	GetCharacter()->SetActorLocation(GetCharacter()->GetActorLocation() + (NewForward.GetSafeNormal() * 50));
+	// If hitLocation - GetCharacter()->GetActorLocation > un poquito
+	// Then pull todwars rightvector * (side == Right? 1 : -1 )
+	// Endif
+}
 
-	GetCharacter()->SetActorLocation(NewLoc); // , true, NULL, ETeleportType::TeleportPhysics);
+void AMyCharacterController::UpdateWallrun(FVector_NetQuantizeNormal* newNormal) {
+	WRData.NormalHit = *newNormal;
 }
 
 void AMyCharacterController::WR_Move(const FInputActionValue& Value) {
 	FVector2D MovementVector = Value.Get<FVector2D>();
-	const int length = 10;
+	const int length = 100;
+	float speeb = 500.f;
 	struct FHitResult OutHit;
-	const FVector Start = GetCharacter()->GetActorLocation() + GetCharacter()->GetActorForwardVector();
+	const FVector Start = GetCharacter()->GetActorLocation() + (GetCharacter()->GetActorForwardVector() * 10);
 	const FVector End = Start + WRData.NormalHit * -1 * length;
 	FCollisionQueryParams TraceParams(FName(TEXT("InteractTrace")), true, NULL);
-	TraceParams.AddIgnoredActor(this);
+	TraceParams.AddIgnoredActor(GetCharacter());
 	bool isWallFound = GetWorld()->LineTraceSingleByChannel(OutHit, Start, End, ECC_WorldStatic, TraceParams);
-
+	//DrawDebugLine(GetWorld(), Start, End, FColor(255, 0, 0), false, -1, 0, 2);
 	if (isWallFound) {
 		WRData.NormalHit = OutHit.ImpactNormal;
 		if (MovementVector.Y >= .5f) {
-			if (WRData.WR_SIDE == ESide::RIGHT && MovementVector.X > .0f) WR_Movement(ESide::RIGHT, MovementVector.Y, OutHit);
-			else if (WRData.WR_SIDE == ESide::LEFT && MovementVector.X < .0f) WR_Movement(ESide::LEFT, MovementVector.Y, OutHit);
+			if (WRData.Side == ESide::RIGHT && MovementVector.X > .0f) WR_Movement(ESide::RIGHT, OutHit);
+			else if (WRData.Side == ESide::LEFT && MovementVector.X < .0f) WR_Movement(ESide::LEFT, OutHit);
 			else EndWallrun();
-		}
-		else EndWallrun();
-
-	}
-	else EndWallrun();
+		} else EndWallrun();
+	} else EndWallrun();
 }
 
 void AMyCharacterController::WR_Look(const FInputActionValue& Value) {
@@ -139,5 +139,5 @@ void AMyCharacterController::WR_Look(const FInputActionValue& Value) {
 
 void AMyCharacterController::WR_dbjump(const FInputActionValue& Value) {
 	EndWallrun();
-	GetCharacter()->LaunchCharacter((GetCharacter()->GetActorForwardVector() + (WRData.WR_SIDE == ESide::LEFT ? 1 : -1) * GetCharacter()->GetActorRightVector()) * 1000, true, true);
+	GetCharacter()->LaunchCharacter((GetCharacter()->GetActorForwardVector() + (WRData.Side == ESide::LEFT ? 1 : -1) * GetCharacter()->GetActorRightVector()) * 1000, true, true);
 }
