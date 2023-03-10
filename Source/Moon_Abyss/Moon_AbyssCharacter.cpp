@@ -30,8 +30,8 @@ AMoon_AbyssCharacter::AMoon_AbyssCharacter() {
 	GetCharacterMovement()->RotationRate = FRotator(0.f, 0.f, 0.f);
 
 	GetCharacterMovement()->JumpZVelocity = 1000.f;
-	GetCharacterMovement()->AirControl = 90000.f;
-	GetCharacterMovement()->MaxWalkSpeed = 500.f;
+	GetCharacterMovement()->AirControl = 1.f;
+	GetCharacterMovement()->MaxWalkSpeed = 1000.f;
 	GetCharacterMovement()->MinAnalogWalkSpeed = 20.f;
 	GetCharacterMovement()->BrakingDecelerationWalking = 2000.f;
 
@@ -49,9 +49,6 @@ void AMoon_AbyssCharacter::BeginPlay() {
 	Super::BeginPlay();
 	MyController = (APlayerMainCharacterController*)Controller;
 	MyController->camera = PlayerCamera;
-	MyController->WRData.WallRuning = false;
-	MyController->WRData.NormalHit = FVector::ZeroVector;
-	MyController->WRData.Side = ESide::NONE;
 
 	// Magic Numbers
 	PlayerCamera->SetRelativeLocation(FVector(-400, 100, 100));
@@ -93,36 +90,28 @@ void AMoon_AbyssCharacter::NotifyHit(
 	FVector NormalImpulse,
 	const FHitResult& Hit
 ) {
-	GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Red, TEXT("HIT"));
+	//GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Red, FString::Printf(TEXT("HIT %f"), (MyController->WRData.Side == ESide::LEFT ? 1.f : -1.f)));
 	//GEngine->AddOnScreenDebugMessage(-1, 15, FColor::Cyan, HitNormal.ToString());
+	float VectorSimilarity = GetActorRightVector().Dot(HitNormal);
 	if (!MyController->WRData.WallRuning) {
-		if (GetActorRightVector().Dot(HitNormal) < -0.50f) {
-			MyController->StartWallrun(ESide::RIGHT, HitNormal);
-			MyController->WRData.Side = ESide::RIGHT;
-			MyController->WRData.WallRuning = true;
-			MyController->WRData.NormalHit = HitNormal;
-
-		}
-		else if (GetActorRightVector().Dot(HitNormal) > 0.5f) {
-			MyController->StartWallrun(ESide::LEFT, HitNormal);
-			MyController->WRData.Side = ESide::LEFT;
-			MyController->WRData.WallRuning = true;
-			MyController->WRData.NormalHit = HitNormal;
-		}
+		if (VectorSimilarity < -0.50f) MyController->StartWallrun(ESide::RIGHT, HitNormal);
+		else if (VectorSimilarity > 0.5f) MyController->StartWallrun(ESide::LEFT, HitNormal);
 	}
-	else {
+	else if (VectorSimilarity > -0.50f && VectorSimilarity < 0.5f) {
 		// Magic Numbers
-		MyController->EndWallrun();
+		GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Red, FString::Printf(TEXT("HIT %f"), (MyController->WRData.Side == ESide::LEFT ? 1.f : -1.f)));
 		LaunchCharacter(
-			(HitNormal + WRData.NormalHit).GetSafeNormal() * 2000,
+			(
+				HitNormal + 
+				(GetActorRightVector() * (MyController->WRData.Side == ESide::LEFT ? 1.f : -1.f))
+			).GetSafeNormal() * MyController->HIT_FORCE,
 			true,
 			true
 		);
-		MyController->WRData.Side = ESide::NONE;
-		MyController->WRData.WallRuning = false;
-		MyController->WRData.NormalHit = FVector::ZeroVector;
-		GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Red, TEXT("YES"));
+		MyController->EndWallrun();
+		//GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Red, TEXT("Tumble!"));
 	}
+	// DrawDebugLine(GetWorld(), GetActorLocation(), Hit.ImpactPoint, FColor::Red, false, 10.f, 5, 5.f);
 }
 
 void AMoon_AbyssCharacter::updateDynamicUi() {

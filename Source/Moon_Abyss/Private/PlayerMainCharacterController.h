@@ -39,6 +39,26 @@ public:
 
 	bool bCanAirJump;
 
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Wallrun, meta = (AllowPrivateAccess = "true"))
+	float MAX_DISTANCE;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Wallrun, meta = (AllowPrivateAccess = "true"))
+	float MIN_DISTANCE;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Wallrun, meta = (AllowPrivateAccess = "true"))
+	float SPEED;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Wallrun, meta = (AllowPrivateAccess = "true"))
+	float MAX_ROTATION;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Wallrun, meta = (AllowPrivateAccess = "true"))
+	FVector JUMP_INFLUENCE;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Wallrun, meta = (AllowPrivateAccess = "true"))
+	float JUMP_FORCE;
+
+	// :WARNING: This is being used on character.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Wallrun, meta = (AllowPrivateAccess = "true"))
+	FVector HIT_INFLUENCE;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Wallrun, meta = (AllowPrivateAccess = "true"))
+	float HIT_FORCE;
+
 	/** INPUTS **/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 		class UInputAction* MoveAction;

@@ -16,6 +16,7 @@ APlayerMainCharacterController::APlayerMainCharacterController() {
 	WRData.WallRuning = false;
 	WRData.Side = ESide::NONE;
 	SetActorTickEnabled(true);
+	bCanAirJump = true;
 }
 
 void APlayerMainCharacterController::BeginPlay() {
@@ -37,18 +38,18 @@ void APlayerMainCharacterController::SetupPlayerInputComponent(class UInputCompo
 }
 
 void APlayerMainCharacterController::DBJump(const FInputActionValue& Value) {
-	//GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Red, TEXT("YES"));
+	GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Red, bCanAirJump ? TEXT("YES") : TEXT("NO"));
 	FVector2D MovementVector = Value.Get<FVector2D>();
 
-	if (GetCharacter()->GetCharacterMovement()->IsFalling() && bCanAirJump) {
+	if (GetCharacter()->CanJump()) GetCharacter()->Jump();
+	else if (bCanAirJump) {
 		bCanAirJump = false;
 		FVector VInMDir = FVector(MovementVector.GetSafeNormal(), 1) * (GetCharacter()->GetMovementComponent()->Velocity.Length() * .5);
 		// Magic Numbers
-		VInMDir.Z += 1000;
+		VInMDir.Z += 500;
 		FVector finalV = GetControlRotation().RotateVector(VInMDir);
 		GetCharacter()->LaunchCharacter(finalV, true, true);
 	}
-	else GetCharacter()->Jump();
 }
 
 void APlayerMainCharacterController::Move(const FInputActionValue& Value) {
@@ -80,6 +81,7 @@ void APlayerMainCharacterController::EndWallrun() {
 
 	GetCharacter()->GetCharacterMovement()->bConstrainToPlane = false;
 	bCanAirJump = true;
+	SetControlRotation(GetCharacter()->GetActorRotation());
 	GetCharacter()->bUseControllerRotationYaw = true;
 }
 
@@ -99,19 +101,27 @@ void APlayerMainCharacterController::StartWallrun(ESide Side, FVector normal) {
 	}
 }
 
+// Move to movement component :)
 void APlayerMainCharacterController::WR_Movement(ESide side, FHitResult fhr) {
 	GetCharacter()->GetCharacterMovement()->StopMovementKeepPathing();
-	// MAGIC NUMBERS 
-	float MAX_DISTANCE = 42.f;
-	float SPEED = 500.f;
-
-	//GEngine->AddOnScreenDebugMessage(-1, 15, FColor::Blue, fhr.ImpactNormal.ToString());
+	float rot = MAX_ROTATION * GetWorld()->GetDeltaSeconds() * SPEED;
 	if (!fhr.ImpactNormal.IsZero()) {
-		FVector NewForward = fhr.ImpactNormal.Cross(FVector(0, 0, (side == ESide::RIGHT ? -1 : 1)));
-		GetCharacter()->SetActorRotation(NewForward.Rotation());
+		const int SideValue = (side == ESide::RIGHT ? -1 : 1);
+		FVector NewForward = fhr.ImpactNormal.Cross(FVector(0, 0, SideValue));
+		FRotator NewRotation = NewForward.Rotation();// *MAX_ROTATION* GetWorld()->GetDeltaSeconds(); //(NewForward.Rotation()) - GetCharacter()->GetActorForwardVector().Rotation();
+		FRotator RotDifference = NewRotation.Clamp() - GetCharacter()->GetActorForwardVector().Rotation().Clamp();
+
+		if (RotDifference.Yaw > 300.f) RotDifference = NewRotation.Clamp() - FRotator(0, GetCharacter()->GetActorForwardVector().Rotation().Clamp().Yaw + 360,0);
+		else if (RotDifference.Yaw < -300.f) RotDifference = NewRotation.Clamp() - FRotator(0, GetCharacter()->GetActorForwardVector().Rotation().Clamp().Yaw - 360, 0);
+		
+		GetCharacter()->AddActorLocalRotation(RotDifference * rot);
+
 		NewForward *= SPEED * GetWorld()->GetDeltaSeconds();
-		if (fhr.Distance > MAX_DISTANCE) NewForward += fhr.ImpactNormal * -1 * (fhr.Distance - MAX_DISTANCE);
-		GetCharacter()->SetActorLocation(GetCharacter()->GetActorLocation() + (NewForward), true);
+
+		if (fhr.Distance > MAX_DISTANCE) NewForward += fhr.ImpactNormal * -1 * (fhr.Distance - MAX_DISTANCE); // If too far get closer
+		else if (fhr.Distance < MIN_DISTANCE)NewForward += fhr.ImpactNormal * (MIN_DISTANCE - fhr.Distance);  // If too close get further away
+
+		GetCharacter()->SetActorLocation(GetCharacter()->GetActorLocation() + NewForward, true);
 	}
 	else GetCharacter()->SetActorLocation(GetCharacter()->GetActorLocation() + (GetCharacter()->GetActorForwardVector() * SPEED * GetWorld()->GetDeltaSeconds()), true);
 }
@@ -122,20 +132,16 @@ void APlayerMainCharacterController::UpdateWallrun(FVector_NetQuantizeNormal* ne
 
 void APlayerMainCharacterController::WR_Move(const FInputActionValue& Value) {
 	FVector2D MovementVector = Value.Get<FVector2D>();
-	// Magic Numbers
-	const int length = 100;
-	float speeb = 500.f;
 
-	struct FHitResult OutHit;
+	FHitResult OutHit;
 
 	// Magic Numbers
-	const FVector Start = GetCharacter()->GetActorLocation() + (GetCharacter()->GetActorForwardVector() * 10);
+	const FVector Start = GetCharacter()->GetActorLocation() + (GetCharacter()->GetActorForwardVector() * SPEED * GetWorld()->GetDeltaSeconds());
+	const FVector End = Start + WRData.NormalHit * -1 * MAX_DISTANCE * 2;
 
-	const FVector End = Start + WRData.NormalHit * -1 * length;
 	FCollisionQueryParams TraceParams(FName(TEXT("InteractTrace")), true, NULL);
 	TraceParams.AddIgnoredActor(GetCharacter());
 	bool isWallFound = GetWorld()->LineTraceSingleByChannel(OutHit, Start, End, ECC_WorldStatic, TraceParams);
-	//DrawDebugLine(GetWorld(), Start, End, FColor(255, 0, 0), false, -1, 0, 2);
 	if (isWallFound) {
 		WRData.NormalHit = OutHit.ImpactNormal;
 		if (MovementVector.Y >= .5f) {
@@ -155,5 +161,9 @@ void APlayerMainCharacterController::WR_dbjump(const FInputActionValue& Value) {
 	EndWallrun();
 
 	// Magic Numbers
-	GetCharacter()->LaunchCharacter(GetCharacter()->GetActorForwardVector() + WRData.NormalHit * 1000, true, true);
+	GetCharacter()->LaunchCharacter((
+		GetCharacter()->GetActorForwardVector() * JUMP_INFLUENCE.X +
+		WRData.NormalHit * JUMP_INFLUENCE.Y +
+		FVector(0, 0, 1) * JUMP_INFLUENCE.Z
+	) * JUMP_FORCE, true, true);
 }

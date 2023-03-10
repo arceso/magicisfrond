@@ -17,16 +17,20 @@ UPlayerCamera::UPlayerCamera() {
 	fTimeToChangeSide = 1.0f;
 	fAccTime = 0.0f;
 
-	bShouldUpdateCameraPosition = false;
+	bShouldUpdateCameraPosition = false;	
+
+	CapsuleComp = CreateDefaultSubobject<UCapsuleComponent>(TEXT("CameraCapsule"));
+	CapsuleComp->SetupAttachment(this, TEXT("CameraCapsule"));
+	
+
 }
 
 void UPlayerCamera::BeginPlay() {
-	SetRelativeLocation(RightCameraPosition);
+	SetRelativeLocation(RightCameraPosition, true);
 }
 
 void UPlayerCamera::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-
 	if (bShouldUpdateCameraPosition) {
 		if (fAccTime + DeltaTime > fTimeToChangeSide) fAccTime = fTimeToChangeSide;
 		else fAccTime += DeltaTime;
@@ -37,14 +41,21 @@ void UPlayerCamera::TickComponent(float DeltaTime, ELevelTick TickType, FActorCo
 			CameraSide == ESide::LEFT ? LeftCameraPosition : RightCameraPosition,
 			fAccTime / fTimeToChangeSide
 		);
-		this->SetRelativeLocation(CurrentCameraPosition);
+
+		FHitResult OutHit;
+		this->SetRelativeRotation(TargetCameraRotation);
+		this->SetRelativeLocation(TargetCameraRotation.RotateVector(CurrentCameraPosition), true, &OutHit, ETeleportType::None);
+		if (OutHit.bBlockingHit) {
+			this->SetRelativeLocation(OutHit.Location);
+			bShouldUpdateCameraPosition = false;
+		}
+
 	}
 }
 
 void UPlayerCamera::HandleInput(FVector2D input) {
-	FQuat FinalRelRotation = (this->GetRelativeRotation() + FRotator(input.Y * -1.f, 0.f, 0.f)).Quaternion();
-	this->SetRelativeRotation(FinalRelRotation);
-	this->SetRelativeLocation(FinalRelRotation.RotateVector(CurrentCameraPosition));
+	bShouldUpdateCameraPosition = true;
+	TargetCameraRotation = (this->GetRelativeRotation() + FRotator(input.Y * -1.f, 0.f, 0.f));
 }
 
 void UPlayerCamera::SetCameraSide(ESide Side) {
@@ -53,7 +64,6 @@ void UPlayerCamera::SetCameraSide(ESide Side) {
 		bShouldUpdateCameraPosition = true;
 		fAccTime = 0.f;
 	}
-	GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Yellow, Side == ESide::LEFT ? TEXT("LEFT") : TEXT("RIGHT"));
 }
 
 ESide UPlayerCamera::GetCameraSide() {

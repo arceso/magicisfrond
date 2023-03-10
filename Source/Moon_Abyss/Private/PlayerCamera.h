@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Camera/CameraComponent.h"
 #include "Side.h"
+#include "Components/CapsuleComponent.h"
 #include "PlayerCamera.generated.h"
 
 
@@ -21,13 +22,17 @@ public:
 	void HandleInput(FVector2D input);
 	void SetCameraSide(ESide Side);
 	ESide GetCameraSide();
-
+	UCapsuleComponent* CapsuleComp;
 private:
 	ESide CameraSide;
 
 	FVector RightCameraPosition,
 		LeftCameraPosition,
-		CurrentCameraPosition;
+		CurrentCameraPosition,
+		TargetCameraPosition;
+
+	FRotator CurrentCameraRotation,
+		TargetCameraRotation;
 
 	float fTimeToChangeSide,
 		fAccTime;
