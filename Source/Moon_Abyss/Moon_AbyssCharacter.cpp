@@ -7,18 +7,19 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
-#include "PlayerMainCharacterController.h"
 #include "Kismet/GameplayStatics.h"
 #include "PlayerCamera.h"
-#include "PlayerMainCharacterController.h"
-#include "Side.h"
+#include "MainCharacterMovementComponent.h"
 #include "Blueprint/UserWidget.h"
+#include "GameFramework/PawnMovementComponent.h"
+#include "CustomMovementFlags.h"
 
 //////////////////////////////////////////////////////////////////////////
 // AMoon_AbyssCharacter
 
-AMoon_AbyssCharacter::AMoon_AbyssCharacter() {
-
+AMoon_AbyssCharacter::AMoon_AbyssCharacter(const FObjectInitializer& ObjectInitializer) :
+	Super(ObjectInitializer.SetDefaultSubobjectClass<UMainCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
+{
 	// Magic Numbers
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
 
@@ -38,6 +39,10 @@ AMoon_AbyssCharacter::AMoon_AbyssCharacter() {
 	PlayerCamera = CreateDefaultSubobject<UPlayerCamera>(TEXT("PlayerCamera"));
 	PlayerCamera->SetupAttachment(RootComponent);
 	PlayerCamera->bUsePawnControlRotation = false;
+
+
+	//PlayerMovement = CreateDefaultSubobject<UMainCharacterMovementComponent>(TEXT("PlayerMovement"));
+	//PlayerMovement->UpdatedComponent = RootComponent;
 }
 
 
@@ -51,7 +56,7 @@ void AMoon_AbyssCharacter::BeginPlay() {
 	MyController->camera = PlayerCamera;
 
 	// Magic Numbers
-	PlayerCamera->SetRelativeLocation(FVector(-400, 100, 100));
+	//PlayerCamera->SetRelativeLocation(FVector(-400, 100, 100));
 
 
 
@@ -67,9 +72,13 @@ void AMoon_AbyssCharacter::BeginPlay() {
 
 	//PlayerCamera->SetRelativeLocation(FVector(-400, DistanceSide * 2, Height));
 
-	// Magic Numbers
+	// Magic Numbers y dumb things
 	CrosshairInstance->SetRenderScale(FVector2D(.033, .05));
-	GetMovementComponent()->SetPlaneConstraintNormal(FVector(0, 0, 1));
+}
+
+void AMoon_AbyssCharacter::StartWallrun(ESide side, FVector& hit) {
+	PlayerMovement->StartWallrun(side, hit);
+	PlayerCamera->SetCameraSide(side == ESide::LEFT ? ESide::RIGHT : ESide::RIGHT);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -77,41 +86,16 @@ void AMoon_AbyssCharacter::BeginPlay() {
 
 
 void AMoon_AbyssCharacter::Landed(const FHitResult& Hit) {
-	MyController->bCanAirJump = true;
+	PlayerMovement->bCanAirJump = true;
 }
 
-void AMoon_AbyssCharacter::NotifyHit(
-	class UPrimitiveComponent* MyComp,
-	AActor* Other,
-	class UPrimitiveComponent* OtherComp,
-	bool bSelfMoved,
-	FVector HitLocation,
-	FVector HitNormal,
-	FVector NormalImpulse,
-	const FHitResult& Hit
-) {
-	//GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Red, FString::Printf(TEXT("HIT %f"), (MyController->WRData.Side == ESide::LEFT ? 1.f : -1.f)));
-	//GEngine->AddOnScreenDebugMessage(-1, 15, FColor::Cyan, HitNormal.ToString());
+void AMoon_AbyssCharacter::NotifyHit(class UPrimitiveComponent* MyComp, AActor* Other, class UPrimitiveComponent* OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit) {
 	float VectorSimilarity = GetActorRightVector().Dot(HitNormal);
-	if (!MyController->WRData.WallRuning) {
-		if (VectorSimilarity < -0.50f) MyController->StartWallrun(ESide::RIGHT, HitNormal);
-		else if (VectorSimilarity > 0.5f) MyController->StartWallrun(ESide::LEFT, HitNormal);
+	if (PlayerMovement->MovementMode != CMOVE_Wallruning) {
+		if (VectorSimilarity < -0.5f) StartWallrun(ESide::RIGHT, HitNormal);
+		else if (VectorSimilarity > 0.5f) StartWallrun(ESide::LEFT, HitNormal);
 	}
-	else if (VectorSimilarity > -0.50f && VectorSimilarity < 0.5f) {
-		// Magic Numbers
-		GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Red, FString::Printf(TEXT("HIT %f"), (MyController->WRData.Side == ESide::LEFT ? 1.f : -1.f)));
-		LaunchCharacter(
-			(
-				HitNormal + 
-				(GetActorRightVector() * (MyController->WRData.Side == ESide::LEFT ? 1.f : -1.f))
-			).GetSafeNormal() * MyController->HIT_FORCE,
-			true,
-			true
-		);
-		MyController->EndWallrun();
-		//GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Red, TEXT("Tumble!"));
-	}
-	// DrawDebugLine(GetWorld(), GetActorLocation(), Hit.ImpactPoint, FColor::Red, false, 10.f, 5, 5.f);
+	else if (VectorSimilarity > -0.50f && VectorSimilarity < 0.5f) PlayerMovement->EndWallrun(EEndReason::Hit);
 }
 
 void AMoon_AbyssCharacter::updateDynamicUi() {
@@ -138,18 +122,20 @@ void AMoon_AbyssCharacter::updateDynamicUi() {
 		EnemySelectorInstance->SetVisibility(ESlateVisibility::Hidden);
 	}
 }
-void AMoon_AbyssCharacter::Wallrun(float deltaT) {
-	//if (MyController->WRData.WallRuning) {
-	//	struct FHitResult OutHit;
-	//	const FVector Start = GetActorLocation();
-	//	const FVector End = Start + GetActorRightVector() * (MyController->WRData.Side == ESide::RIGHT ? 1 : -1) * 100;
-	//	FCollisionQueryParams TraceParams(FName(TEXT("InteractTrace")), true, NULL);
-	//	TraceParams.AddIgnoredActor(this);
-	//	bool Target = GetWorld()->LineTraceSingleByChannel(OutHit, Start, End, ECC_WorldStatic, TraceParams);
-	//	MyController->UpdateWallrun(&(OutHit.ImpactNormal));
-	//}
+
+
+void AMoon_AbyssCharacter::PostInitializeComponents() {
+	Super::PostInitializeComponents();
+	UPawnMovementComponent* pepegarcialopez = nullptr;
+	pepegarcialopez = Super::GetMovementComponent();
+	PlayerMovement = reinterpret_cast<UMainCharacterMovementComponent*>(Super::GetMovementComponent());
+}
+
+UMainCharacterMovementComponent* AMoon_AbyssCharacter::GetMovementComponent() const {
+	return PlayerMovement;
 }
 
 void AMoon_AbyssCharacter::Tick(float DeltaSeconds) {
+	Super::Tick(DeltaSeconds);
 	updateDynamicUi();
 }

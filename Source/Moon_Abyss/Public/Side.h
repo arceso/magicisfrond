@@ -1,6 +1,10 @@
 #pragma once
-enum class ESide : int {
-	NONE = 0,
-	LEFT = -1,
-	RIGHT = 1,
+
+#include "UObject/ObjectMacros.h"
+
+//UENUM(BlueprintType)
+enum class ESide {
+	NONE = 0,//	UMETA(DisplayName = "None"),
+	LEFT = -1,//	UMETA(DisplayName = "Left"),
+	RIGHT = 1,//	UMETA(DisplayName = "Right"),
 };

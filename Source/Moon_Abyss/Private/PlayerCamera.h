@@ -6,8 +6,8 @@
 #include "Camera/CameraComponent.h"
 #include "Side.h"
 #include "Components/CapsuleComponent.h"
+#include "CollisionShape.h"
 #include "PlayerCamera.generated.h"
-
 
 /**
  *
@@ -22,20 +22,32 @@ public:
 	void HandleInput(FVector2D input);
 	void SetCameraSide(ESide Side);
 	ESide GetCameraSide();
-	UCapsuleComponent* CapsuleComp;
+
+	FCollisionShape SweepShape;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = MyCamera, meta = (AllowPrivateAccess = "true"))
+		FVector RightCameraPosition;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = MyCamera, meta = (AllowPrivateAccess = "true"))
+		FVector LeftCameraPosition;
+	
+
+
 private:
 	ESide CameraSide;
 
-	FVector RightCameraPosition,
-		LeftCameraPosition,
-		CurrentCameraPosition,
+	USceneComponent* LocalTransform;
+
+	FVector CurrentCameraPosition, 
 		TargetCameraPosition;
 
 	FRotator CurrentCameraRotation,
 		TargetCameraRotation;
 
 	float fTimeToChangeSide,
-		fAccTime;
+		fAccTimeToChangeSide,
+		fTimeToChangeHeight,
+		fAccTimeToChangeHeight;
+
 	bool bShouldUpdateCameraPosition;
 
 protected:

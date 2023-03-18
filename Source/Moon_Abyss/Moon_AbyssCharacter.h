@@ -10,6 +10,7 @@
 #include "Side.h"
 #include "PlayerCamera.h"
 #include "PlayerMainCharacterController.h"
+#include "MainCharacterMovementComponent.h"
 #include "Moon_AbyssCharacter.generated.h"
 
 UCLASS(config=Game)
@@ -31,25 +32,34 @@ class AMoon_AbyssCharacter : public ACharacter
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = UI, meta = (AllowPrivateAccess = "true"))
 		TSubclassOf<UUserWidget> W_Crosshair;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = UI, meta = (AllowPrivateAccess = "true"))
+		UPlayerCamera* PlayerCamera;
+
+	//UFUNCTION(BlueprintCallable, Category="Movement")
+	virtual UMainCharacterMovementComponent* GetMovementComponent() const override;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = UI, meta = (AllowPrivateAccess = "true"))
+		UMainCharacterMovementComponent* PlayerMovement;
+
+	virtual void PostInitializeComponents() override;
 
 public:
-	AMoon_AbyssCharacter();
+	AMoon_AbyssCharacter(const FObjectInitializer& ObjectInitializer);
 	
 
 protected:
 
 
-
+	void StartWallrun(ESide side, FVector& fhr);
 	virtual void Landed(const FHitResult& Hit) override;
 	virtual void NotifyHit(class UPrimitiveComponent* MyComp, AActor* Other, class UPrimitiveComponent* OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit) override;
 	void updateDynamicUi();
-	void Wallrun(float deltaT);
 	virtual void Tick(float DeltaSeconds) override;
-	
 	UUserWidget* EnemySelectorInstance;
 	UUserWidget* CrosshairInstance;
 
-	UPlayerCamera* PlayerCamera;
+	//UPlayerCamera* PlayerCamera;
 
 	APlayerMainCharacterController* MyController;
 
@@ -63,7 +73,6 @@ protected:
 	// APawn interface
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 	
-	// To add mapping context
 	virtual void BeginPlay();
 
 };
