@@ -21,6 +21,8 @@ public:
 	// Peasant stuff
 	void Move(const FInputActionValue& Value);
 	void Look(const FInputActionValue& Value);
+	void Crouch(const FInputActionValue& Value);
+	void Sprint(const FInputActionValue& Value);
 	void DBJump(const FInputActionValue& Value);
 
 	//Grapple stuff
@@ -31,6 +33,8 @@ public:
 	void BeginPlay()override;
 	void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent);
 	UPlayerCamera* camera;
+
+
 	UMainCharacterMovementComponent* CMC;
 
 
@@ -44,6 +48,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = InputActions, meta = (AllowPrivateAccess = "true"))
 		class UInputAction* CrouchAction;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = InputActions, meta = (AllowPrivateAccess = "true"))
+		class UInputAction* SprintAction;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = InputActions, meta = (AllowPrivateAccess = "true"))
 		class UInputAction* GrappleAction;
 
 	/** MappingContext */
@@ -56,4 +62,5 @@ public:
 
 private:
 	float ACC;
+	bool bSprint;
 };

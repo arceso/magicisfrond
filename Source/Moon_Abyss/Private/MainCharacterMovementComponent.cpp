@@ -11,9 +11,13 @@ void UMainCharacterMovementComponent::BeginPlay(){
 	SelfExcludeQueryParams.AddIgnoredActor(GetOwner());
 	SetMovementMode(EMovementMode::MOVE_Walking);
 	WRData.WallRuning = false;
-	WRData.Side = ESide::NONE;
+	WRData.Side = ESide::None;
 	bCanAirJump = true;
+	bIsSprinting = false;
+	AirJumpHeightGain = 500.f;
+	EndWallLaunchForce = 1000.f;
 	SetPlaneConstraintNormal(FVector(0, 0, 1));
+	AirControl = 1;
 }
 
 void UMainCharacterMovementComponent::Walking(const FVector2D& input) {
@@ -27,7 +31,14 @@ void UMainCharacterMovementComponent::Walking(const FVector2D& input) {
 }
 
 void UMainCharacterMovementComponent::Falling(const FVector2D& input) {
-	if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Red, TEXT("Falling"));
+	//if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Red, TEXT("Falling"));
+	const FRotator YawRotation(0, PawnOwner->GetController()->GetControlRotation().Yaw, 0);
+
+	const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
+	const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
+
+	PawnOwner->AddMovementInput(ForwardDirection, input.Y * AirInfluenceControl);
+	PawnOwner->AddMovementInput(RightDirection, input.X * AirInfluenceControl);
 }
 
 void UMainCharacterMovementComponent::Sliding(const FVector2D& input) {
@@ -37,6 +48,11 @@ void UMainCharacterMovementComponent::Sliding(const FVector2D& input) {
 
 void UMainCharacterMovementComponent::Crouching(const FVector2D& input) {
 	if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Red, TEXT("Crouching"));
+}
+
+void UMainCharacterMovementComponent::Sprinting(const FVector2D& input)
+{
+
 }
 
 void UMainCharacterMovementComponent::Grappling(const FVector2D& input) {
@@ -82,15 +98,31 @@ void UMainCharacterMovementComponent::Jump(const FVector2D& input) {
 	}
 }
 
+/// STATE GETTERS
+bool UMainCharacterMovementComponent::isSliding() { return MovementMode == MOVE_Custom && CustomMovementMode == CMOVE_Sliding; }
+bool UMainCharacterMovementComponent::isWallruning() { return MovementMode == MOVE_Custom && CustomMovementMode == CMOVE_Wallruning; }
+bool UMainCharacterMovementComponent::isCrouching() { return MovementMode == MOVE_Custom && CustomMovementMode == CMOVE_Crouching; }
+bool UMainCharacterMovementComponent::isGrappling() { return MovementMode == MOVE_Custom && CustomMovementMode == CMOVE_Grappling; }
+bool UMainCharacterMovementComponent::isWalking() { return MovementMode == MOVE_Walking; }
+bool UMainCharacterMovementComponent::isFalling() { return MovementMode == MOVE_Falling; }
+bool UMainCharacterMovementComponent::isSprinting() { return bIsSprinting; }
+
 void UMainCharacterMovementComponent::WalkJump(const FVector2D& input) {
 	GetCharacterOwner()->Jump();
 }
+
+void UMainCharacterMovementComponent::Sprint(bool bStart) {
+	bIsSprinting = bStart;
+	if (bStart) this->MaxWalkSpeed += 1000;
+	else this->MaxWalkSpeed -= 1000;
+}
+
 void UMainCharacterMovementComponent::FallJump(const FVector2D& input) {
 	if (bCanAirJump) {
 		bCanAirJump = false;
-		FVector VInMDir = FVector(input.GetSafeNormal(), 1) * (Velocity.Length() * .5);
+		FVector VInMDir = GetCharacterOwner()->GetActorForwardVector().Rotation().RotateVector(FVector(input.GetSafeNormal(), 0) * (Velocity.Length()));
 		// Magic Numbers
-		VInMDir.Z += 500;
+		VInMDir.Z += AirJumpHeightGain;
 		//FVector finalV = GetControlRotation().RotateVector(VInMDir);
 		GetCharacterOwner()->LaunchCharacter(VInMDir, true, true);
 	}
@@ -98,16 +130,14 @@ void UMainCharacterMovementComponent::FallJump(const FVector2D& input) {
 void UMainCharacterMovementComponent::Wallruning(const FVector2D& input) {
 	// Magic Numbers
 	const FVector Start = GetActorLocation() + (GetPawnOwner()->GetActorForwardVector() * Velocity.Length() * GetWorld()->GetDeltaSeconds());
-	const FVector End = Start + WRData.NormalHit * -1 * 42 * 2;
-
-	DrawDebugLine(GetWorld(), Start, End, FColor::Red, false, 10, 0, 10);
+	const FVector End = Start + WRData.NormalHit * -1 * 100 * 2; // Magic number for the time being
 
 	bool isWallFound = GetWorld()->LineTraceSingleByChannel(OutHit, Start, End, ECC_WorldStatic, SelfExcludeQueryParams);
 	if (isWallFound) {
 		WRData.NormalHit = OutHit.ImpactNormal;
 		if (input.Y >= .5f) {
-			if (WRData.Side == ESide::RIGHT && input.X > .0f) Wallrun(ESide::RIGHT, OutHit);
-			else if (WRData.Side == ESide::LEFT && input.X < .0f) Wallrun(ESide::LEFT, OutHit);
+			if (WRData.Side == ESide::Right && input.X > .0f) Wallrun(ESide::Right, OutHit);
+			else if (WRData.Side == ESide::Left && input.X < .0f) Wallrun(ESide::Left, OutHit);
 			else EndWallrun(EEndReason::InvalidInput);
 		}
 		else EndWallrun(EEndReason::InvalidInput);
@@ -130,7 +160,6 @@ void UMainCharacterMovementComponent::StartWallrun(ESide Side, FVector normal) {
 		WRData.Side = Side;
 		WRData.NormalHit = normal;
 		GEngine->AddOnScreenDebugMessage(-1, 15, FColor::Cyan, TEXT("PAesequefunshiona"));
-		//camera->SetCameraSide(Side == ESide::LEFT ? ESide::RIGHT : ESide::LEFT);
 	}
 }
 
@@ -138,14 +167,15 @@ void UMainCharacterMovementComponent::Wallrun(ESide side, FHitResult fhr) {
 	StopMovementKeepPathing();
 	float rot = MAX_ROTATION * GetWorld()->GetDeltaSeconds() * SPEED;
 	if (!fhr.ImpactNormal.IsZero()) {
-		const int SideValue = (side == ESide::RIGHT ? -1 : 1);
+		int SideValue = 0;
+		if (side == ESide::Right) SideValue = -1;
+		else if (side == ESide::Left) SideValue = 1;
 		FVector NewForward = fhr.ImpactNormal.Cross(FVector(0, 0, SideValue));
-		FRotator NewRotation = NewForward.Rotation();// *MAX_ROTATION* GetWorld()->GetDeltaSeconds(); //(NewForward.Rotation()) - GetActorForwardVector().Rotation();
+		FRotator NewRotation = NewForward.Rotation();
 		FRotator RotDifference = NewRotation.Clamp() - GetOwner()->GetActorForwardVector().Rotation().Clamp();
 
 		if (RotDifference.Yaw > 300.f) RotDifference = NewRotation.Clamp() - FRotator(0, GetOwner()->GetActorForwardVector().Rotation().Clamp().Yaw + 360, 0);
 		else if (RotDifference.Yaw < -300.f) RotDifference = NewRotation.Clamp() - FRotator(0, GetOwner()->GetActorForwardVector().Rotation().Clamp().Yaw - 360, 0);
-
 
 		GetOwner()->AddActorLocalRotation(RotDifference * rot);
 
@@ -155,8 +185,7 @@ void UMainCharacterMovementComponent::Wallrun(ESide side, FHitResult fhr) {
 		else if (fhr.Distance < MIN_DISTANCE)NewForward += fhr.ImpactNormal * (MIN_DISTANCE - fhr.Distance);  // If too close get further away
 
 		GetOwner()->SetActorLocation(GetActorLocation() + NewForward, true);
-	}
-	else GetOwner()->SetActorLocation(GetActorLocation() + (GetOwner()->GetActorForwardVector() * SPEED * GetWorld()->GetDeltaSeconds()), true);
+	} else GetOwner()->SetActorLocation(GetActorLocation() + (GetOwner()->GetActorForwardVector() * SPEED * GetWorld()->GetDeltaSeconds()), true);
 }
 
 void UMainCharacterMovementComponent::UpdateWallrun(FVector_NetQuantizeNormal* newNormal) {
@@ -165,7 +194,7 @@ void UMainCharacterMovementComponent::UpdateWallrun(FVector_NetQuantizeNormal* n
 
 void UMainCharacterMovementComponent::EndWallrun(EEndReason reason) {
 	WRData.WallRuning = false;
-	WRData.Side = ESide::NONE;
+	WRData.Side = ESide::None;
 
 	SetMovementMode(MOVE_Falling);
 
@@ -174,18 +203,25 @@ void UMainCharacterMovementComponent::EndWallrun(EEndReason reason) {
 	GetPawnOwner()->GetController()->SetControlRotation(GetPawnOwner()->GetActorRotation());
 	GetPawnOwner()->bUseControllerRotationYaw = true;
 
-	if (reason == EEndReason::Jump) {}
-	else if (reason == EEndReason::NoWallFound) {}
-	else if (reason == EEndReason::Hit) {}
+	if (reason == EEndReason::Jump) {
+		// Pos has saltao, paco.
+	}
+	else if (reason == EEndReason::NoWallFound) {
+		FVector VInMDir = GetCharacterOwner()->GetActorForwardVector() * EndWallLaunchForce;
+		GetCharacterOwner()->LaunchCharacter(VInMDir, true, true);
+	}
+	else if (reason == EEndReason::Hit) {
+		GetCharacterOwner()->LaunchCharacter(FVector(0,0,2), true, true);
+	}
 }
 
 void UMainCharacterMovementComponent::WallrunJump(const FVector2D& input) {
+	FRotator DeltaDegrees(0, WRData.Side == ESide::Left ? WallrunJumpAngle : WallrunJumpAngle * -1, 0);
+	//DeltaDegrees += GetCharacterOwner()->GetActorForwardVector().Rotation();
 	EndWallrun(EEndReason::Jump);
-	GetCharacterOwner()->LaunchCharacter((
-		GetCharacterOwner()->GetActorForwardVector() * JUMP_INFLUENCE.X +
-		//WRData.NormalHit * JUMP_INFLUENCE.Y +
-		FVector(0, 0, 1) * JUMP_INFLUENCE.Z
-		) * JUMP_FORCE, true, true);
+	FVector WallJumpDirection = DeltaDegrees.RotateVector(GetCharacterOwner()->GetActorForwardVector()) * 1000;
+	WallJumpDirection.Z += AirJumpHeightGain;
+	GetCharacterOwner()->LaunchCharacter(WallJumpDirection, true, true);
 }
 
 void UMainCharacterMovementComponent::OnMovementUpdated(float DeltaSeconds, const FVector& OldLocation, const FVector& OldVelocity) {

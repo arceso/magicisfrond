@@ -36,10 +36,18 @@ public:
 	FVector JUMP_INFLUENCE;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CharacterMovement:Wallrun", meta = (AllowPrivateAccess = "true"))
 	float JUMP_FORCE;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Wallrun, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CharacterMovement:Wallrun", meta = (AllowPrivateAccess = "true"))
 	FVector HIT_INFLUENCE;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Wallrun, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CharacterMovement:Wallrun", meta = (AllowPrivateAccess = "true"))
 	float HIT_FORCE;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CharacterMovement:Wallrun", meta = (AllowPrivateAccess = "true"))
+	float EndWallLaunchForce;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CharacterMovement:Jump", meta = (AllowPrivateAccess = "true"))
+	float AirJumpHeightGain;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CharacterMovement:Jump", meta = (AllowPrivateAccess = "true"))
+	float WallrunJumpAngle;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CharacterMovement:Jump", meta = (AllowPrivateAccess = "true"))
+	float AirInfluenceControl;
 
 	struct WR_DATA {
 		bool WallRuning;
@@ -56,8 +64,18 @@ public:
 	void Move(const FVector2D& input);
 	void Jump(const FVector2D& input);
 	
+	bool isSliding();
+	bool isWallruning();
+	bool isCrouching();
+	bool isGrappling();
+	bool isWalking();
+	bool isFalling();
+	bool isSprinting();
+
 	void Walking(const FVector2D& input);
 	void WalkJump(const FVector2D& input);
+
+	void Sprint(bool bStart);
 
 	void Falling(const FVector2D& input);
 	void FallJump(const FVector2D& input);
@@ -70,8 +88,9 @@ public:
 	void Wallrun(ESide side, FHitResult fhr);
 	void UpdateWallrun(FVector_NetQuantizeNormal* newNormal);
 	void WallrunJump(const FVector2D& input);
+
 	void Crouching(const FVector2D& input);
-	
+	void Sprinting(const FVector2D& input);
 	void Grappling(const FVector2D& input);
 
 	// virtual void Landed() override;
@@ -81,7 +100,9 @@ public:
 
 
 
-	bool bCanAirJump;
+	bool 
+		bCanAirJump,
+		bIsSprinting;
 	FCollisionQueryParams SelfExcludeQueryParams;
 
 protected:

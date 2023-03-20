@@ -11,7 +11,9 @@
 #include "EnhancedInputSubsystems.h"
 #include "PlayerCamera.h"
 
-APlayerMainCharacterController::APlayerMainCharacterController() {}
+APlayerMainCharacterController::APlayerMainCharacterController() {
+	bSprint = false;
+}
 
 void APlayerMainCharacterController::BeginPlay() {
 	Super::BeginPlay();
@@ -26,6 +28,8 @@ void APlayerMainCharacterController::SetupPlayerInputComponent(class UInputCompo
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &APlayerMainCharacterController::Move);
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &APlayerMainCharacterController::Look);
 		EnhancedInputComponent->BindAction(dbjump, ETriggerEvent::Triggered, this, &APlayerMainCharacterController::DBJump);
+		EnhancedInputComponent->BindAction(CrouchAction, ETriggerEvent::Triggered, this, &APlayerMainCharacterController::Crouch);
+		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Triggered, this, &APlayerMainCharacterController::Sprint);
 		EnhancedInputComponent->BindAction(GrappleAction, ETriggerEvent::Triggered, this, &APlayerMainCharacterController::Grapple);
 	}
 }
@@ -42,6 +46,17 @@ void APlayerMainCharacterController::Look(const FInputActionValue& Value) {
 	FVector2D LookAxisVector = Value.Get<FVector2D>();
 	camera->HandleInput(LookAxisVector);
 	AddYawInput(LookAxisVector.X);
+}
+
+void APlayerMainCharacterController::Crouch(const FInputActionValue& Value) {
+	GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Cyan, Value.Get<bool>() ? TEXT("Crouch") : TEXT("Uncrouch"));
+	if (Value.Get<bool>())CMC->Crouch(true);
+	else CMC->UnCrouch(true);
+}
+
+void APlayerMainCharacterController::Sprint(const FInputActionValue& Value) {
+	GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Cyan, Value.Get<bool>() ? TEXT("Sprint") : TEXT("Unsprint"));
+	CMC->Sprint(Value.Get<bool>());
 }
 
 void APlayerMainCharacterController::Grapple(const FInputActionValue& Value) {

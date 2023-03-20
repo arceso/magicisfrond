@@ -18,15 +18,6 @@ class AMoon_AbyssCharacter : public ACharacter
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
-		double DistanceToCharacter;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
-		double DistanceSide;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
-		double Height;
-
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = UI, meta = (AllowPrivateAccess = "true"))
 		TSubclassOf<UUserWidget> W_EnemyTargeted;
 
@@ -35,6 +26,13 @@ class AMoon_AbyssCharacter : public ACharacter
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = UI, meta = (AllowPrivateAccess = "true"))
 		UPlayerCamera* PlayerCamera;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = UI, meta = (AllowPrivateAccess = "true"))
+	class UCapsuleComponent* TriggerCapsule;
+	UFUNCTION()
+	void OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+	UFUNCTION() 
+	void OnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+
 
 	//UFUNCTION(BlueprintCallable, Category="Movement")
 	virtual UMainCharacterMovementComponent* GetMovementComponent() const override;
@@ -51,7 +49,7 @@ public:
 protected:
 
 
-	void StartWallrun(ESide side, FVector& fhr);
+	void SetUpWallrun(ESide side, FVector& fhr);
 	virtual void Landed(const FHitResult& Hit) override;
 	virtual void NotifyHit(class UPrimitiveComponent* MyComp, AActor* Other, class UPrimitiveComponent* OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit) override;
 	void updateDynamicUi();
@@ -69,7 +67,6 @@ protected:
 		FVector NormalHit;
 	} WRData;
 
-protected:
 	// APawn interface
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 	

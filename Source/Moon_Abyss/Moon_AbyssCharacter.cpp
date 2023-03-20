@@ -40,6 +40,14 @@ AMoon_AbyssCharacter::AMoon_AbyssCharacter(const FObjectInitializer& ObjectIniti
 	PlayerCamera->SetupAttachment(RootComponent);
 	PlayerCamera->bUsePawnControlRotation = false;
 
+	TriggerCapsule = CreateDefaultSubobject<UCapsuleComponent>(TEXT("trigger capsule"));
+	TriggerCapsule->InitCapsuleSize(42.f, 96.0f);
+	TriggerCapsule->SetCollisionProfileName(TEXT("Trigger"));
+	TriggerCapsule->SetupAttachment(RootComponent);
+
+
+	TriggerCapsule->OnComponentBeginOverlap.AddDynamic(this, &AMoon_AbyssCharacter::OnOverlapBegin);
+	TriggerCapsule->OnComponentEndOverlap.AddDynamic(this, &AMoon_AbyssCharacter::OnOverlapEnd);
 
 	//PlayerMovement = CreateDefaultSubobject<UMainCharacterMovementComponent>(TEXT("PlayerMovement"));
 	//PlayerMovement->UpdatedComponent = RootComponent;
@@ -76,9 +84,9 @@ void AMoon_AbyssCharacter::BeginPlay() {
 	CrosshairInstance->SetRenderScale(FVector2D(.033, .05));
 }
 
-void AMoon_AbyssCharacter::StartWallrun(ESide side, FVector& hit) {
+void AMoon_AbyssCharacter::SetUpWallrun(ESide side, FVector& hit) {
+	PlayerCamera->SetCameraSide(side == ESide::Left ? ESide::Right : ESide::Left);
 	PlayerMovement->StartWallrun(side, hit);
-	PlayerCamera->SetCameraSide(side == ESide::LEFT ? ESide::RIGHT : ESide::RIGHT);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -91,9 +99,15 @@ void AMoon_AbyssCharacter::Landed(const FHitResult& Hit) {
 
 void AMoon_AbyssCharacter::NotifyHit(class UPrimitiveComponent* MyComp, AActor* Other, class UPrimitiveComponent* OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit) {
 	float VectorSimilarity = GetActorRightVector().Dot(HitNormal);
-	if (PlayerMovement->MovementMode != CMOVE_Wallruning) {
-		if (VectorSimilarity < -0.5f) StartWallrun(ESide::RIGHT, HitNormal);
-		else if (VectorSimilarity > 0.5f) StartWallrun(ESide::LEFT, HitNormal);
+	GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Red, FString::Printf(TEXT("HIT %f"), VectorSimilarity));
+
+
+	if (!PlayerMovement->isWallruning()) {
+		if (VectorSimilarity < -0.5f) {
+			SetUpWallrun(ESide::Right, HitNormal);
+		} else if (VectorSimilarity > 0.5f) {
+ 			SetUpWallrun(ESide::Left, HitNormal);
+		}
 	}
 	else if (VectorSimilarity > -0.50f && VectorSimilarity < 0.5f) PlayerMovement->EndWallrun(EEndReason::Hit);
 }
@@ -138,4 +152,20 @@ UMainCharacterMovementComponent* AMoon_AbyssCharacter::GetMovementComponent() co
 void AMoon_AbyssCharacter::Tick(float DeltaSeconds) {
 	Super::Tick(DeltaSeconds);
 	updateDynamicUi();
+}
+
+
+void AMoon_AbyssCharacter::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult) {
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Overlap Begin"));
+	if (OtherActor->Tags.Num() > 0 && OtherActor->Tags.Contains(TEXT("Camera.Mode.CloseUp"))) {
+		PlayerCamera->SetCameraMode(ECameraMode::CloseUp);
+	}
+}
+
+void AMoon_AbyssCharacter::OnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex) {
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Overlap End"));
+	if (OtherActor->Tags.Num() > 0 && OtherActor->Tags.Contains(TEXT("Camera.Mode.CloseUp"))) {
+		PlayerCamera->SetCameraMode(ECameraMode::Center);
+	}
+
 }
