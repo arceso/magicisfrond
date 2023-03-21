@@ -11,8 +11,11 @@
 #include "PlayerCamera.h"
 #include "PlayerMainCharacterController.h"
 #include "MainCharacterMovementComponent.h"
-#include "Moon_AbyssCharacter.generated.h"
 
+
+#include "Components/TextRenderComponent.h"
+
+#include "Moon_AbyssCharacter.generated.h"
 UCLASS(config=Game)
 class AMoon_AbyssCharacter : public ACharacter
 {
@@ -28,6 +31,10 @@ class AMoon_AbyssCharacter : public ACharacter
 		UPlayerCamera* PlayerCamera;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = UI, meta = (AllowPrivateAccess = "true"))
 	class UCapsuleComponent* TriggerCapsule;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = UI, meta = (AllowPrivateAccess = "true"))
+	UTextRenderComponent* StateText;
+
 	UFUNCTION()
 	void OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 	UFUNCTION() 
@@ -45,7 +52,6 @@ class AMoon_AbyssCharacter : public ACharacter
 public:
 	AMoon_AbyssCharacter(const FObjectInitializer& ObjectInitializer);
 	
-
 protected:
 
 

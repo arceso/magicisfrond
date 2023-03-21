@@ -113,5 +113,4 @@ void UPlayerCamera::baseTransition(const float& deltaT, float& Acc, float& Time,
 		vec,
 		Acc / Time
 	);
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TargetCameraPosition.ToString());
 }

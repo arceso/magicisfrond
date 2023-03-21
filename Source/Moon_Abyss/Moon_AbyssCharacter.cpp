@@ -14,6 +14,7 @@
 #include "GameFramework/PawnMovementComponent.h"
 #include "CustomMovementFlags.h"
 
+
 //////////////////////////////////////////////////////////////////////////
 // AMoon_AbyssCharacter
 
@@ -49,6 +50,10 @@ AMoon_AbyssCharacter::AMoon_AbyssCharacter(const FObjectInitializer& ObjectIniti
 	TriggerCapsule->OnComponentBeginOverlap.AddDynamic(this, &AMoon_AbyssCharacter::OnOverlapBegin);
 	TriggerCapsule->OnComponentEndOverlap.AddDynamic(this, &AMoon_AbyssCharacter::OnOverlapEnd);
 
+	StateText = CreateDefaultSubobject<UTextRenderComponent>(TEXT("Movement State Representation"));
+	StateText->SetupAttachment(RootComponent);
+	
+
 	//PlayerMovement = CreateDefaultSubobject<UMainCharacterMovementComponent>(TEXT("PlayerMovement"));
 	//PlayerMovement->UpdatedComponent = RootComponent;
 }
@@ -58,10 +63,12 @@ void AMoon_AbyssCharacter::SetupPlayerInputComponent(class UInputComponent* Play
 	//Super::SetupPlayerInputComponent(PlayerInputComponent);
 	((APlayerMainCharacterController*)Controller)->SetupPlayerInputComponent(PlayerInputComponent);
 }
+
 void AMoon_AbyssCharacter::BeginPlay() {
 	Super::BeginPlay();
 	MyController = (APlayerMainCharacterController*)Controller;
 	MyController->camera = PlayerCamera;
+
 
 	// Magic Numbers
 	//PlayerCamera->SetRelativeLocation(FVector(-400, 100, 100));
@@ -152,6 +159,17 @@ UMainCharacterMovementComponent* AMoon_AbyssCharacter::GetMovementComponent() co
 void AMoon_AbyssCharacter::Tick(float DeltaSeconds) {
 	Super::Tick(DeltaSeconds);
 	updateDynamicUi();
+
+
+	//Macro to only be present on debug mode
+	FText textstate = FText::FromString("algo ha fallao");
+	if (GetMovementComponent()->isCrouching()) textstate = FText::FromString("Crouching");
+	else if (GetMovementComponent()->isSliding()) textstate = FText::FromString("Sliding");
+	else if (GetMovementComponent()->isFalling()) textstate = FText::FromString("Falling");
+	else if (GetMovementComponent()->isWallruning()) textstate = FText::FromString("Wallruning");
+	else if (GetMovementComponent()->isSprinting()) textstate = FText::FromString("Sprinting");
+	else if (GetMovementComponent()->isWalking()) textstate = FText::FromString("Walking");
+	StateText->SetText(textstate);
 }
 
 

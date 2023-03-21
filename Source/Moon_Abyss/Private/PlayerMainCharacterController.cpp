@@ -49,14 +49,12 @@ void APlayerMainCharacterController::Look(const FInputActionValue& Value) {
 }
 
 void APlayerMainCharacterController::Crouch(const FInputActionValue& Value) {
-	GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Cyan, Value.Get<bool>() ? TEXT("Crouch") : TEXT("Uncrouch"));
-	if (Value.Get<bool>())CMC->Crouch(true);
-	else CMC->UnCrouch(true);
+	CMC->Crouch(Value.Get<bool>());
+	//else CMC->UnCrouch(true);
 }
 
 void APlayerMainCharacterController::Sprint(const FInputActionValue& Value) {
-	GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Cyan, Value.Get<bool>() ? TEXT("Sprint") : TEXT("Unsprint"));
-	CMC->Sprint(Value.Get<bool>());
+	if (Value.Get<bool>()) CMC->Sprint(true);
 }
 
 void APlayerMainCharacterController::Grapple(const FInputActionValue& Value) {

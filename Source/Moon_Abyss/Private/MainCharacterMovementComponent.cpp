@@ -3,6 +3,7 @@
 
 #include "MainCharacterMovementComponent.h"
 #include "GameFramework/Character.h"
+#include "Components/CapsuleComponent.h"
 #include "CustomMovementFlags.h"
 
 
@@ -18,20 +19,61 @@ void UMainCharacterMovementComponent::BeginPlay(){
 	EndWallLaunchForce = 1000.f;
 	SetPlaneConstraintNormal(FVector(0, 0, 1));
 	AirControl = 1;
+	fGroundFrictionBase = 8.f;
+	fGroundFrictionReduced = .5f;
+	GroundFriction = fGroundFrictionBase;
+	fBrackingForce = 5.f;
+	fBrackingForceReduced = 0.5;
+	BrakingFriction = fBrackingForce;
+
+}
+
+void UMainCharacterMovementComponent::PhysCustom(float dT, int32 iterations) {
+	Super::PhysCustom(dT, iterations);
+
+	switch (CustomMovementMode) {
+	case CMOVE_Sliding:
+		PhysSlide(dT, iterations);
+		break;
+	default:
+		UE_LOG(LogTemp, Fatal, TEXT("Invalid Movement Mode"));
+		break;
+	}
+}
+
+
+bool UMainCharacterMovementComponent::IsMovingOnGround() const {
+	return Super::IsMovingOnGround() || isSliding();
+}
+
+bool UMainCharacterMovementComponent::CanCrouchInCurrentState() const {
+	return Super::CanCrouchInCurrentState() && IsMovingOnGround();
 }
 
 void UMainCharacterMovementComponent::Walking(const FVector2D& input) {
-	const FRotator YawRotation(0, PawnOwner->GetController()->GetControlRotation().Yaw, 0);
+	if (input.IsNearlyZero()) {
+		if (isSprinting()) Sprint(false);
+	} else {
+		const FRotator YawRotation(0, PawnOwner->GetController()->GetControlRotation().Yaw, 0);
 
-	const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
-	const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
+		const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
+		const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
 
-	PawnOwner->AddMovementInput(ForwardDirection, input.Y);
-	PawnOwner->AddMovementInput(RightDirection, input.X);
+		PawnOwner->AddMovementInput(ForwardDirection, input.Y);
+		PawnOwner->AddMovementInput(RightDirection, input.X);
+	}
+}
+
+bool UMainCharacterMovementComponent::GetSlideSurface(FHitResult& Hit){
+	FVector
+		Start = UpdatedComponent->GetComponentLocation(),
+		End = Start + CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight() * 2 * FVector::DownVector;
+	return GetWorld()->LineTraceSingleByProfile(Hit, Start, End, TEXT("BlockAll"), SelfExcludeQueryParams);
 }
 
 void UMainCharacterMovementComponent::Falling(const FVector2D& input) {
-	//if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Red, TEXT("Falling"));
+	////if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Red, TEXT("Falling"));
+	if (isSprinting()) Sprint(false);
 	const FRotator YawRotation(0, PawnOwner->GetController()->GetControlRotation().Yaw, 0);
 
 	const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
@@ -42,27 +84,28 @@ void UMainCharacterMovementComponent::Falling(const FVector2D& input) {
 }
 
 void UMainCharacterMovementComponent::Sliding(const FVector2D& input) {
-	if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Red, TEXT("Sliding"));
+	GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Blue, TEXT("SLIDING"));
+	//Walking(input);
 }
 
 
 void UMainCharacterMovementComponent::Crouching(const FVector2D& input) {
-	if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Red, TEXT("Crouching"));
+	Walking(input);
 }
 
-void UMainCharacterMovementComponent::Sprinting(const FVector2D& input)
-{
+void UMainCharacterMovementComponent::Sprinting(const FVector2D& input) {
+
+	Walking(input);
 
 }
 
 void UMainCharacterMovementComponent::Grappling(const FVector2D& input) {
-	if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Red, TEXT("Grappling"));
+	Walking(input);
 }
 
 
 void UMainCharacterMovementComponent::AddInputVector(FVector WorldAccel, bool bForce /*=false*/) {
 	if (PawnOwner && !WorldAccel.IsZero()) {
-		if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Blue, WorldAccel.ToString());
 		PawnOwner->Internal_AddMovementInput(WorldAccel, bForce);
 	}
 }
@@ -70,51 +113,182 @@ void UMainCharacterMovementComponent::AddInputVector(FVector WorldAccel, bool bF
 
 void UMainCharacterMovementComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+	if (MovementMode == MOVE_Falling) Velocity.Z += this->GetGravityZ() * DeltaTime;
 };
 
 
-void UMainCharacterMovementComponent::Move(const FVector2D& input) {
-	if (MovementMode == MOVE_Custom) {
-		if (CustomMovementMode == CMOVE_Sliding) Sliding(input);
-		if (CustomMovementMode == CMOVE_Wallruning) Wallruning(input);
-		if (CustomMovementMode == CMOVE_Crouching) Crouching(input);
-		if (CustomMovementMode == CMOVE_Grappling) Grappling(input);
-	} else {
-		if (MovementMode == MOVE_Walking) Walking(input);
-		if (MovementMode == MOVE_Falling) Falling(input);
-	}
+void UMainCharacterMovementComponent::OnMovementModeChanged(EMovementMode PreviousMovementMode, uint8 PreviousCustomMode) {
+	Super::OnMovementModeChanged(PreviousMovementMode, PreviousCustomMode);
+	PreviousMovementMode;
 }
 
-void UMainCharacterMovementComponent::Jump(const FVector2D& input) {
-	if (MovementMode == MOVE_Custom) {
-		//if (CustomMovementMode == CMOVE_Sliding) SlidingJump(input);
-		if (CustomMovementMode == CMOVE_Wallruning) WallrunJump(input);
-		//if (CustomMovementMode == CMOVE_Crouching) CrouchingJump(input);
-		//if (CustomMovementMode == CMOVE_Grappling) GrapplingJump(input);
-	}
-	else {
-		if (MovementMode == MOVE_Walking) WalkJump(input);
-		if (MovementMode == MOVE_Falling) FallJump(input);
-	}
-}
-
-/// STATE GETTERS
-bool UMainCharacterMovementComponent::isSliding() { return MovementMode == MOVE_Custom && CustomMovementMode == CMOVE_Sliding; }
-bool UMainCharacterMovementComponent::isWallruning() { return MovementMode == MOVE_Custom && CustomMovementMode == CMOVE_Wallruning; }
-bool UMainCharacterMovementComponent::isCrouching() { return MovementMode == MOVE_Custom && CustomMovementMode == CMOVE_Crouching; }
-bool UMainCharacterMovementComponent::isGrappling() { return MovementMode == MOVE_Custom && CustomMovementMode == CMOVE_Grappling; }
-bool UMainCharacterMovementComponent::isWalking() { return MovementMode == MOVE_Walking; }
-bool UMainCharacterMovementComponent::isFalling() { return MovementMode == MOVE_Falling; }
-bool UMainCharacterMovementComponent::isSprinting() { return bIsSprinting; }
-
-void UMainCharacterMovementComponent::WalkJump(const FVector2D& input) {
+void UMainCharacterMovementComponent::SprintingJump(const FVector2D& input)
+{
+	bIsSprinting = false;
 	GetCharacterOwner()->Jump();
 }
 
+void UMainCharacterMovementComponent::EndSliding() {
+	//bIsSliding = false;
+	//if (GroundFriction == fGroundFrictionReduced) GroundFriction = fGroundFrictionBase;
+	//if (BrakingFriction == fBrackingForceReduced) BrakingFriction = fBrackingForce;
+
+	FQuat NewRotation = FRotationMatrix::MakeFromXZ(UpdatedComponent->GetForwardVector().GetSafeNormal2D(), FVector::UpVector).ToQuat();
+	FHitResult Hit;
+	SafeMoveUpdatedComponent(FVector::ZeroVector, NewRotation, true, Hit);
+	SetMovementMode(MOVE_Walking);
+}
+
+void UMainCharacterMovementComponent::SlidingJump(const FVector2D& input) {
+	bIsSliding = false;
+	GetCharacterOwner()->Jump();
+}
+
+void UMainCharacterMovementComponent::PhysSlide(float deltaT, int32 Iterations)
+{
+	if (deltaT < MIN_TICK_TIME) return;
+	RestorePreAdditiveRootMotionVelocity(); // If animations add movement to root component or smth like that. mb coment it out.
+
+	FHitResult Surface;
+	if (!GetSlideSurface(Surface) || Velocity.SizeSquared() < Slide_MinSpeed * Slide_MinSpeed) {
+		EndSliding();
+		StartNewPhysics(deltaT, Iterations);
+		return;
+	}
+
+	Velocity += Slide_GravityForce * FVector::DownVector * deltaT;
+
+	if (FMath::Abs(FVector::DotProduct(Acceleration.GetSafeNormal(), UpdatedComponent->GetRightVector())) > .5f) {
+		Acceleration = Acceleration.ProjectOnTo(UpdatedComponent->GetRightVector());
+	} else Acceleration = FVector::ZeroVector;
+
+	if (!HasAnimRootMotion() && !CurrentRootMotion.HasOverrideVelocity()) {
+		CalcVelocity(deltaT, Slide_Friction, true, GetMaxBrakingDeceleration());
+	}
+	ApplyRootMotionToVelocity(deltaT);
+
+	Iterations++;
+	bJustTeleported = false;
+
+	FVector OldLocation = UpdatedComponent->GetComponentLocation();
+	FQuat OldRotation = UpdatedComponent->GetComponentRotation().Quaternion();
+	FHitResult Hit(1.f);
+	FVector Adjusted = Velocity * deltaT;
+	FVector VelPlaneDir = FVector::VectorPlaneProject(Velocity, Surface.Normal).GetSafeNormal();
+	FQuat NewRotation = FRotationMatrix::MakeFromXZ(VelPlaneDir, Surface.Normal).ToQuat();
+	SafeMoveUpdatedComponent(Adjusted, NewRotation, true, Hit);
+
+	if (Hit.Time < 1.f) {
+		HandleImpact(Hit, deltaT, Adjusted);
+		SlideAlongSurface(Adjusted, 1.f - Hit.Time, Hit.Normal, Hit, true);
+	}
+	FHitResult newSurfaceHit;
+	if (!GetSlideSurface(newSurfaceHit) || Velocity.SizeSquared() < Slide_MinSpeed * Slide_MinSpeed) EndSliding();
+	
+	if(!bJustTeleported && !HasAnimRootMotion() && !CurrentRootMotion.HasOverrideVelocity()) {
+		Velocity = (UpdatedComponent->GetComponentLocation() - OldLocation) / deltaT;
+	}
+}
+
+void UMainCharacterMovementComponent::CrouchingJump(const FVector2D& input) {
+	FVector launchVector = Velocity;
+	launchVector.Z += 750.f;
+	PendingLaunchVelocity = launchVector;
+}
+
+void UMainCharacterMovementComponent::GrapplingJump(const FVector2D& input)
+{
+	throw std::logic_error("The method or operation is not implemented.");
+}
+
+void UMainCharacterMovementComponent::Move(const FVector2D& input) {
+	if (isWalking()) Walking(input);
+	else if (isFalling()) Falling(input);
+	else if (isSprinting()) Sprinting(input);
+	else if (isWallruning()) Wallruning(input);
+	else if (isCrouching()) Crouching(input);
+	else if (isGrappling()) Grappling(input);
+	else if (isSliding()) Sliding(input);
+}
+
+void UMainCharacterMovementComponent::Jump(const FVector2D& input) {
+	
+		if (isWallruning()) WallrunJump(input);
+		if (isSprinting()) SprintingJump(input);
+		else if (isSliding()) SlidingJump(input);
+		else if (isCrouching()) CrouchingJump(input);
+		else if (isGrappling()) GrapplingJump(input);
+		else if (isWalking()) WalkJump(input);
+		else if (isFalling()) FallJump(input);
+}
+
+void UMainCharacterMovementComponent::Crouch(bool bStart) {
+	if (!isSliding()) {
+		if (bStart) {
+			if (isSprinting()) StartGroundSlide();
+			else if (isFalling()) StartAirSlide();
+			else if (isWallruning()) { EndWallrun(EEndReason::Jump); StartAirSlide(); }
+			else if (isWalking()) StartCrouching();
+		} else if (isCrouching()) EndCrouching();
+	} else if (!bStart) EndSliding();
+}
+
+/// STATE GETTERS
+bool UMainCharacterMovementComponent::isSliding() const { return MovementMode == MOVE_Custom && CustomMovementMode == CMOVE_Sliding; }
+bool UMainCharacterMovementComponent::isWallruning() const { return MovementMode == MOVE_Custom && CustomMovementMode == CMOVE_Wallruning; }
+bool UMainCharacterMovementComponent::isCrouching() const { return MovementMode == MOVE_Walking && bIsCrouching; }
+bool UMainCharacterMovementComponent::isGrappling() const { return MovementMode == MOVE_Custom && CustomMovementMode == CMOVE_Grappling; }
+bool UMainCharacterMovementComponent::isSprinting() const { return MovementMode == MOVE_Walking && bIsSprinting; }
+bool UMainCharacterMovementComponent::isWalking() const { return MovementMode == MOVE_Walking && !bIsSprinting && !bIsSliding && !bIsCrouching; }
+bool UMainCharacterMovementComponent::isFalling() const { return MovementMode == MOVE_Falling && !bIsSliding; }
+
+void UMainCharacterMovementComponent::WalkJump(const FVector2D& input) {
+	if(isSprinting()) Sprint(false);
+	GetCharacterOwner()->Jump();
+}
+
+void UMainCharacterMovementComponent::StartCrouching() {
+	GetCharacterOwner()->GetCapsuleComponent()->SetCapsuleHalfHeight(GetCharacterOwner()->GetCapsuleComponent()->GetScaledCapsuleHalfHeight() / 2);
+	MaxWalkSpeed /= 2.f;
+	bIsCrouching = true;
+}
+
+void UMainCharacterMovementComponent::EndCrouching() {
+	bIsCrouching = false;
+	GetCharacterOwner()->GetCapsuleComponent()->SetCapsuleHalfHeight(GetCharacterOwner()->GetCapsuleComponent()->GetScaledCapsuleHalfHeight() * 2);
+	MaxWalkSpeed *= 2.f;
+}
+
 void UMainCharacterMovementComponent::Sprint(bool bStart) {
-	bIsSprinting = bStart;
-	if (bStart) this->MaxWalkSpeed += 1000;
-	else this->MaxWalkSpeed -= 1000;
+	if (isWalking() && Velocity.IsNearlyZero()) return;
+	if (isSprinting()) {
+		bIsSprinting = false;
+		MaxWalkSpeed = fWalkMaxSpeed;
+	} else if (isWalking() || isCrouching()) {
+		bIsSprinting = true;
+		MaxWalkSpeed = fSprintMaxSpeed;
+	} 
+}
+
+void UMainCharacterMovementComponent::StartGroundSlide() {
+	GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Purple, TEXT("Slide started"));
+	//GroundFriction = fGroundFrictionReduced;
+	//BrakingFriction = fBrackingForceReduced;
+	//PendingLaunchVelocity = GetCharacterOwner()->GetActorForwardVector() * fGroundSlideForce;
+	//bIsSliding = true;
+	Velocity += Velocity.GetSafeNormal2D() * Slide_EnterImpulse;
+	SetMovementMode(MOVE_Custom, CMOVE_Sliding);
+}
+
+void UMainCharacterMovementComponent::StartAirSlide() {
+	bIsSliding = true;
+	FVector ForwardAndSightlyDownwards = Velocity;
+	float ZVelocity = ForwardAndSightlyDownwards.Z;
+	ForwardAndSightlyDownwards.Z = 0;
+	ForwardAndSightlyDownwards *= fAirSlideForce;
+	ForwardAndSightlyDownwards.Z = ZVelocity - 750.f;
+
+	PendingLaunchVelocity = ForwardAndSightlyDownwards;
 }
 
 void UMainCharacterMovementComponent::FallJump(const FVector2D& input) {
@@ -123,8 +297,7 @@ void UMainCharacterMovementComponent::FallJump(const FVector2D& input) {
 		FVector VInMDir = GetCharacterOwner()->GetActorForwardVector().Rotation().RotateVector(FVector(input.GetSafeNormal(), 0) * (Velocity.Length()));
 		// Magic Numbers
 		VInMDir.Z += AirJumpHeightGain;
-		//FVector finalV = GetControlRotation().RotateVector(VInMDir);
-		GetCharacterOwner()->LaunchCharacter(VInMDir, true, true);
+		PendingLaunchVelocity = VInMDir;
 	}
 }
 void UMainCharacterMovementComponent::Wallruning(const FVector2D& input) {
@@ -152,6 +325,7 @@ void UMainCharacterMovementComponent::Wallruning(const FVector2D& input) {
 
 void UMainCharacterMovementComponent::StartWallrun(ESide Side, FVector normal) {
 	if (!WRData.WallRuning && IsFalling()) {
+		if(isSprinting()) Sprint(false);
 		// If not set, beautiful things happens. Should look into it.
 		SetMovementMode(MOVE_Custom, CMOVE_Wallruning);
 		bConstrainToPlane = true;
@@ -159,7 +333,7 @@ void UMainCharacterMovementComponent::StartWallrun(ESide Side, FVector normal) {
 		WRData.WallRuning = true;
 		WRData.Side = Side;
 		WRData.NormalHit = normal;
-		GEngine->AddOnScreenDebugMessage(-1, 15, FColor::Cyan, TEXT("PAesequefunshiona"));
+		//GEngine->AddOnScreenDebugMessage(-1, 15, FColor::Cyan, TEXT("PAesequefunshiona"));
 	}
 }
 
@@ -204,7 +378,7 @@ void UMainCharacterMovementComponent::EndWallrun(EEndReason reason) {
 	GetPawnOwner()->bUseControllerRotationYaw = true;
 
 	if (reason == EEndReason::Jump) {
-		// Pos has saltao, paco.
+		// Pos has saltao, que quers que te diga, Novita.
 	}
 	else if (reason == EEndReason::NoWallFound) {
 		FVector VInMDir = GetCharacterOwner()->GetActorForwardVector() * EndWallLaunchForce;
@@ -231,7 +405,7 @@ void UMainCharacterMovementComponent::OnMovementUpdated(float DeltaSeconds, cons
 }
 
 void UMainCharacterMovementComponent::CapsuleTouched(UPrimitiveComponent* OverlappedComp, AActor* Other, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult) {
-	//GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Red, FString::Printf(TEXT("HIT %f"), (MyController->WRData.Side == ESide::LEFT ? 1.f : -1.f)));
+	////GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Red, FString::Printf(TEXT("HIT %f"), (MyController->WRData.Side == ESide::LEFT ? 1.f : -1.f)));
 
 	// DrawDebugLine(GetWorld(), GetActorLocation(), Hit.ImpactPoint, FColor::Red, false, 10.f, 5, 5.f);
 }
