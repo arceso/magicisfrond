@@ -115,8 +115,7 @@ void AMoon_AbyssCharacter::NotifyHit(class UPrimitiveComponent* MyComp, AActor* 
 		} else if (VectorSimilarity > 0.5f) {
  			SetUpWallrun(ESide::Left, HitNormal);
 		}
-	}
-	else if (VectorSimilarity > -0.50f && VectorSimilarity < 0.5f) PlayerMovement->EndWallrun(EEndReason::Hit);
+	} else if (VectorSimilarity > -0.50f && VectorSimilarity < 0.5f) PlayerMovement->EndWallrun(EEndReason::WalkableGround, &Hit);
 }
 
 void AMoon_AbyssCharacter::updateDynamicUi() {

@@ -11,7 +11,8 @@ enum class EEndReason {
 	NoWallFound,
 	Jump,
 	Hit,
-	InvalidInput
+	InvalidInput,
+	WalkableGround
 };
 
 /**
@@ -66,11 +67,33 @@ public:
 	float fWalkMaxSpeed;
 
 
-	float
-		Slide_MinSpeed = 350,
-		Slide_EnterImpulse = 2500,
-		Slide_GravityForce = 10000,
-		Slide_Friction = .4;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Movement: XSlide", meta = (AllowPrivateAccess = "true"))	
+	float Slide_MinSpeed = 350;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Movement: XSlide", meta = (AllowPrivateAccess = "true"))	
+	float Slide_EnterImpulse = 2500;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Movement: XSlide", meta = (AllowPrivateAccess = "true"))	
+	float Slide_GravityForce = 10000;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Movement: XSlide", meta = (AllowPrivateAccess = "true"))	
+	float Slide_Friction = .4;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Movement: XWR", meta = (AllowPrivateAccess = "true"))	
+	float WR_MinSpeed = 350;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Movement: XWR", meta = (AllowPrivateAccess = "true"))	
+	float WR_EnterImpulse = 10000;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Movement: XWR", meta = (AllowPrivateAccess = "true"))	
+	float WR_GravityForce = 1000;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Movement: XWR", meta = (AllowPrivateAccess = "true"))	
+	float WR_Friction = 0.f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Movement: XWR", meta = (AllowPrivateAccess = "true"))	
+	float WR_SimilarityAcceptancePoint = .4f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Movement: XWR", meta = (AllowPrivateAccess = "true"))	
+	float WR_EndJumpAwayForce = 1000.f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Movement: XWR", meta = (AllowPrivateAccess = "true"))	
+	float WR_JumpUpForce = 1000.f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Movement: XWR", meta = (AllowPrivateAccess = "true"))	
+	float WR_EndHitYawForce = 1000.f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Movement: XWR", meta = (AllowPrivateAccess = "true"))	
+	float WR_EndHitUpForce = 2000.f;
 
 
 	struct WR_DATA {
@@ -86,6 +109,7 @@ public:
 
 	virtual void BeginPlay() override;
 	void Move(const FVector2D& input);
+	void Wallruning(const FVector2D& input);
 	void Jump(const FVector2D& input);
 	
 	bool isSliding() const;
@@ -107,23 +131,22 @@ public:
 	void StartCrouching();
 	void EndCrouching();
 	void CrouchingJump(const FVector2D& input);
+	bool GetWallrunSurface(FHitResult& Hit, ESide side);
 
-
+	void PhysSlide(float deltaT, int32 Iterations);
 	void StartGroundSlide();
 	void StartAirSlide();
-	void Sliding(const FVector2D& input);
-	void SlidingJump(const FVector2D& input);
-	void PhysSlide(float deltaT, int32 Iterations);
+	void EndSliding();
 	bool GetSlideSurface(FHitResult& Hit);
+	bool GetGroundSurface(FHitResult& Hit);
+	void SlidingJump(const FVector2D& input);
 
 	void Falling(const FVector2D& input);
 	void FallJump(const FVector2D& input);
 
-	void Wallruning(const FVector2D& input);
-	void EndWallrun(EEndReason reason);
+	void PhysWallrun(float dT, int32 iterations);
+	void EndWallrun(EEndReason reason, const FHitResult* Hit = nullptr);
 	void StartWallrun(ESide Side, FVector normal);
-	void Wallrun(ESide side, FHitResult fhr);
-	void UpdateWallrun(FVector_NetQuantizeNormal* newNormal);
 	void WallrunJump(const FVector2D& input);
 
 	void Grappling(const FVector2D& input);
@@ -151,5 +174,4 @@ protected:
 	
 private:
 	void SprintingJump(const FVector2D& input);
-	void EndSliding();
 };
