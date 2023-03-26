@@ -83,6 +83,8 @@ private:
 		fAccTimeToChangeHeight,
 		fAccTimeToChangeModeScripted;
 
+	FVector OldLocation;
+
 	onTickCallBack modeTransitionToFunction;
 	void baseTransition(const float& deltaT, float& Acc, float& Time, const FVector& vec);
 

@@ -23,7 +23,7 @@ void UMainCharacterMovementComponent::BeginPlay(){
 	fBrackingForce = 5.f;
 	fBrackingForceReduced = 0.5;
 	BrakingFriction = fBrackingForce;
-
+	bWantToEndCrouch = false;
 }
 
 void UMainCharacterMovementComponent::PhysCustom(float dT, int32 iterations) {
@@ -65,11 +65,11 @@ void UMainCharacterMovementComponent::Walking(const FVector2D& input) {
 }
 
 bool UMainCharacterMovementComponent::GetSlideSurface(FHitResult& Hit){
-	FVector
-		Start = UpdatedComponent->GetComponentLocation(),
-		End = Start + CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight() * 2 * FVector::DownVector;
+	FVector Start = UpdatedComponent->GetComponentLocation();
+	FVector End = Start + CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight() * 2 * FVector::DownVector;
 	
 	return GetWorld()->LineTraceSingleByProfile(Hit, Start, End, TEXT("BlockAll"), SelfExcludeQueryParams);
+
 }
 
 bool UMainCharacterMovementComponent::GetGroundSurface(FHitResult& Hit) {
@@ -112,7 +112,12 @@ void UMainCharacterMovementComponent::AddInputVector(FVector WorldAccel, bool bF
 
 void UMainCharacterMovementComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-	if (MovementMode == MOVE_Falling) Velocity.Z += this->GetGravityZ() * DeltaTime;
+	
+	if (MovementMode == MOVE_Falling) Velocity += FVector::UpVector * GetGravityZ() * DeltaTime;
+	if (bWantToEndCrouch && CanUncrouch()) {
+		if (isCrouching()) EndCrouching();
+		else if (isSliding()) EndSliding();
+	}
 };
 
 void UMainCharacterMovementComponent::OnMovementModeChanged(EMovementMode PreviousMovementMode, uint8 PreviousCustomMode) {
@@ -134,7 +139,20 @@ void UMainCharacterMovementComponent::EndSliding() {
 	FQuat NewRotation = FRotationMatrix::MakeFromXZ(UpdatedComponent->GetForwardVector().GetSafeNormal2D(), FVector::UpVector).ToQuat();
 	FHitResult Hit;
 	SafeMoveUpdatedComponent(FVector::ZeroVector, NewRotation, true, Hit);
-	SetMovementMode(MOVE_Walking);
+
+	GetCharacterOwner()->GetCapsuleComponent()->SetCapsuleHalfHeight(GetCharacterOwner()->GetClass()->GetDefaultObject<ACharacter>()->GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
+	if (CanUncrouch()) {
+		SetMovementMode(MOVE_Walking); 
+	}
+	else {
+		bWantToEndCrouch = true;
+		StartCrouching();
+	}
+}
+
+bool UMainCharacterMovementComponent::CanUncrouch() {
+	DrawDebugCapsule(GetWorld(), UpdatedComponent->GetComponentLocation() + FVector::UpVector * GetCharacterOwner()->GetClass()->GetDefaultObject<ACharacter>()->GetCapsuleComponent()->GetScaledCapsuleHalfHeight(), GetCharacterOwner()->GetClass()->GetDefaultObject<ACharacter>()->GetCapsuleComponent()->GetScaledCapsuleHalfHeight(), GetCharacterOwner()->GetClass()->GetDefaultObject<ACharacter>()->GetCapsuleComponent()->GetScaledCapsuleRadius(), UpdatedComponent->GetComponentQuat(), FColor::Blue, false, 10.f, 0, 1.f);
+	return !OverlapTest(UpdatedComponent->GetComponentLocation() + FVector::UpVector * (GetCharacterOwner()->GetClass()->GetDefaultObject<ACharacter>()->GetCapsuleComponent()->GetScaledCapsuleHalfHeight()), UpdatedComponent->GetComponentQuat(), ECollisionChannel::ECC_WorldStatic, GetCharacterOwner()->GetCapsuleComponent()->GetCollisionShape(), GetCharacterOwner());
 }
 
 void UMainCharacterMovementComponent::PhysWallrun(float dT, int32 Iterations) {
@@ -156,13 +174,11 @@ void UMainCharacterMovementComponent::PhysWallrun(float dT, int32 Iterations) {
 
 	//if (WallHit.Distance < 80.f) GetPawnOwner()->SetActorLocation(GetPawnOwner()->GetActorLocation() + (WallHit.Normal * (80.f - WallHit.Distance)));
 
-
 	if (Velocity.SizeSquared2D() < WR_MinSpeed * WR_MinSpeed) {
 		EndWallrun(EEndReason::InvalidInput);
 		StartNewPhysics(dT, Iterations);
 		return;
 	}
-
 
 	//float angleOfSurface = FMath::RadiansToDegrees(FMath::Acos(FVector::DotProduct(FVector::UpVector, WallHit.Normal) / (FVector::UpVector.Size() * WallHit.Normal.Size())));
 	FHitResult groundCheck;
@@ -176,16 +192,12 @@ void UMainCharacterMovementComponent::PhysWallrun(float dT, int32 Iterations) {
 		}
 	}
 
-
 	Velocity += FVector::DownVector * (WR_GravityForce * (1 - FVector::DotProduct(FVector::UpVector, WallHit.Normal)));
 	
-
 	if (!HasAnimRootMotion() && !CurrentRootMotion.HasOverrideVelocity()) {
 		CalcVelocity(dT, WR_Friction, false, GetMaxBrakingDeceleration());
 	}
 	ApplyRootMotionToVelocity(dT);
-
-
 
 	Iterations++;
 	bJustTeleported = false;
@@ -219,11 +231,11 @@ void UMainCharacterMovementComponent::PhysWallrun(float dT, int32 Iterations) {
 }
 
 bool UMainCharacterMovementComponent::GetWallrunSurface(FHitResult& Hit, ESide side) {
-	FVector Start = UpdatedComponent->GetComponentLocation() + UpdatedComponent->GetForwardVector()*10;
+	FVector Start = UpdatedComponent->GetComponentLocation() + UpdatedComponent->GetForwardVector() * 10;
 	FVector End;
 	if (side == ESide::Right) End = Start + UpdatedComponent->GetRightVector() * 200;//CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleRadius() * 2;
 	else if (side == ESide::Left) End = Start + UpdatedComponent->GetRightVector() * -1 * 200;//CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleRadius() * 2;
-	DrawDebugLine(GetWorld(), Start, End, FColor::Green, false, 5.f, 0, 4.f);
+	//DrawDebugLine(GetWorld(), Start, End, FColor::Green, false, 5.f, 0, 4.f);
 	return GetWorld()->LineTraceSingleByProfile(Hit, Start, End, TEXT("BlockAll"), SelfExcludeQueryParams);
 	//return GetWorld()->SweepSingleByProfile(Hit, Start, End, UpdatedComponent->GetComponentRotation().Quaternion(), TEXT("BlockAll"), GetCharacterOwner()->GetCapsuleComponent()->GetCollisionShape(), SelfExcludeQueryParams);
 }
@@ -288,9 +300,12 @@ void UMainCharacterMovementComponent::PhysSlide(float dT, int32 Iterations) {
 }
 
 void UMainCharacterMovementComponent::CrouchingJump(const FVector2D& input) {
-	FVector launchVector = Velocity;
-	launchVector.Z += 750.f;
-	PendingLaunchVelocity = launchVector;
+	//Magic Numbers
+	if (CanUncrouch()) {
+		FVector launchVector = Velocity;
+		launchVector.Z += 75000.f;
+		GetCharacterOwner()->LaunchCharacter(launchVector, true, true);
+	}
 }
 
 void UMainCharacterMovementComponent::GrapplingJump(const FVector2D& input)
@@ -345,11 +360,11 @@ void UMainCharacterMovementComponent::Crouch(bool bStart) {
 /// STATE GETTERS
 bool UMainCharacterMovementComponent::isSliding() const { return MovementMode == MOVE_Custom && CustomMovementMode == CMOVE_Sliding; }
 bool UMainCharacterMovementComponent::isWallruning() const { return MovementMode == MOVE_Custom && CustomMovementMode == CMOVE_Wallruning; }
-bool UMainCharacterMovementComponent::isCrouching() const { return MovementMode == MOVE_Walking && bIsCrouching; }
+bool UMainCharacterMovementComponent::isCrouching() const { return bIsCrouching; }
 bool UMainCharacterMovementComponent::isGrappling() const { return MovementMode == MOVE_Custom && CustomMovementMode == CMOVE_Grappling; }
 bool UMainCharacterMovementComponent::isSprinting() const { return MovementMode == MOVE_Walking && bIsSprinting; }
-bool UMainCharacterMovementComponent::isWalking() const { return MovementMode == MOVE_Walking && !bIsSprinting && !bIsSliding && !bIsCrouching; }
-bool UMainCharacterMovementComponent::isFalling() const { return MovementMode == MOVE_Falling && !bIsSliding; }
+bool UMainCharacterMovementComponent::isWalking() const { return MovementMode == MOVE_Walking && !isSprinting() && !isCrouching(); }
+bool UMainCharacterMovementComponent::isFalling() const { return MovementMode == MOVE_Falling; }
 
 void UMainCharacterMovementComponent::WalkJump(const FVector2D& input) {
 	if(isSprinting()) Sprint(false);
@@ -357,15 +372,32 @@ void UMainCharacterMovementComponent::WalkJump(const FVector2D& input) {
 }
 
 void UMainCharacterMovementComponent::StartCrouching() {
+	GetCharacterOwner()->GetCapsuleComponent()->SetRelativeLocation(FVector(
+		GetCharacterOwner()->GetCapsuleComponent()->GetRelativeLocation().X,		
+		GetCharacterOwner()->GetCapsuleComponent()->GetRelativeLocation().Y,
+		GetCharacterOwner()->GetClass()->GetDefaultObject<ACharacter>()->GetCapsuleComponent()->GetScaledCapsuleHalfHeight() / -2
+	));
 	GetCharacterOwner()->GetCapsuleComponent()->SetCapsuleHalfHeight(GetCharacterOwner()->GetCapsuleComponent()->GetScaledCapsuleHalfHeight() / 2);
 	MaxWalkSpeed /= 2.f;
 	bIsCrouching = true;
 }
 
 void UMainCharacterMovementComponent::EndCrouching() {
-	bIsCrouching = false;
-	GetCharacterOwner()->GetCapsuleComponent()->SetCapsuleHalfHeight(GetCharacterOwner()->GetCapsuleComponent()->GetScaledCapsuleHalfHeight() * 2);
-	MaxWalkSpeed *= 2.f;
+	if (!CanUncrouch()) bWantToEndCrouch = true;
+	else {
+		bWantToEndCrouch = false;
+		bIsCrouching = false;
+		GetCharacterOwner()->GetCapsuleComponent()->SetRelativeLocation(FVector(
+			GetCharacterOwner()->GetCapsuleComponent()->GetRelativeLocation().X,
+			GetCharacterOwner()->GetCapsuleComponent()->GetRelativeLocation().Y,
+			GetCharacterOwner()->GetClass()->GetDefaultObject<ACharacter>()->GetCapsuleComponent()->GetScaledCapsuleHalfHeight()  - GetCharacterOwner()->GetCapsuleComponent()->GetScaledCapsuleHalfHeight()
+		));
+		GetCharacterOwner()->GetCapsuleComponent()->SetCapsuleHalfHeight(GetCharacterOwner()->GetClass()->GetDefaultObject<ACharacter>()->GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
+			//SetCapsuleHalfHeight(GetCharacterOwner()->GetClass()->GetDefaultObject<ACharacter>()->GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
+		MaxWalkSpeed *= 2.f;
+		Super::UnCrouch(true);
+		CharacterOwner->bIsCrouched = false;
+	}
 }
 
 void UMainCharacterMovementComponent::Sprint(bool bStart) {
@@ -385,6 +417,7 @@ void UMainCharacterMovementComponent::StartGroundSlide() {
 	//BrakingFriction = fBrackingForceReduced;
 	//PendingLaunchVelocity = GetCharacterOwner()->GetActorForwardVector() * fGroundSlideForce;
 	//bIsSliding = true;
+	GetCharacterOwner()->GetCapsuleComponent()->SetCapsuleHalfHeight(GetCharacterOwner()->GetCapsuleComponent()->GetScaledCapsuleHalfHeight() / 2);
 	Velocity += Velocity.GetSafeNormal2D() * Slide_EnterImpulse;
 	SetMovementMode(MOVE_Custom, CMOVE_Sliding);
 }
@@ -403,8 +436,9 @@ void UMainCharacterMovementComponent::StartAirSlide() {
 	////PendingLaunchVelocity = GetCharacterOwner()->GetActorForwardVector() * fGroundSlideForce;
 	////bIsSliding = true;
 	//Velocity += Velocity.GetSafeNormal2D() * ForwardAndSightlyDownwards;
-	Velocity += Velocity.GetSafeNormal2D() * Slide_EnterImpulse;
 	//Velocity.SetComponentForAxis(EAxis::Z, Velocity.Z - 750.f);
+	GetCharacterOwner()->GetCapsuleComponent()->SetCapsuleHalfHeight(GetCharacterOwner()->GetCapsuleComponent()->GetScaledCapsuleHalfHeight() / 2);
+	Velocity += Velocity.GetSafeNormal2D() * Slide_EnterImpulse;
 	SetMovementMode(MOVE_Custom, CMOVE_Sliding);
 }
 

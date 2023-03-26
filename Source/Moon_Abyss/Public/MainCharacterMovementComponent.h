@@ -23,7 +23,9 @@ class MOON_ABYSS_API UMainCharacterMovementComponent : public UCharacterMovement
 {
 	GENERATED_BODY()
 public:
-
+	UMainCharacterMovementComponent() {
+		NavAgentProps.bCanCrouch = true;
+	}
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Movement: Wallrun", meta = (AllowPrivateAccess = "true"))
 	float MAX_DISTANCE;
@@ -125,7 +127,7 @@ public:
 
 	void Sprint(bool bStart);
 	void Sprinting(const FVector2D& input);
-
+	//bool CanCrouch() ;
 	void Crouch(bool bStart);
 	void Crouching(const FVector2D& input);
 	void StartCrouching();
@@ -137,6 +139,9 @@ public:
 	void StartGroundSlide();
 	void StartAirSlide();
 	void EndSliding();
+
+	bool CanUncrouch();
+
 	bool GetSlideSurface(FHitResult& Hit);
 	bool GetGroundSurface(FHitResult& Hit);
 	void SlidingJump(const FVector2D& input);
@@ -165,7 +170,8 @@ public:
 		bCanAirJump,
 		bIsSprinting,
 		bIsSliding,
-		bIsCrouching;
+		bIsCrouching,
+		bWantToEndCrouch;
 
 	FCollisionQueryParams SelfExcludeQueryParams;
 

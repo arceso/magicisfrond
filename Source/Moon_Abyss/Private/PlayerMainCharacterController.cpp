@@ -50,7 +50,6 @@ void APlayerMainCharacterController::Look(const FInputActionValue& Value) {
 
 void APlayerMainCharacterController::Crouch(const FInputActionValue& Value) {
 	CMC->Crouch(Value.Get<bool>());
-	//else CMC->UnCrouch(true);
 }
 
 void APlayerMainCharacterController::Sprint(const FInputActionValue& Value) {

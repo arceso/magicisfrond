@@ -52,10 +52,6 @@ AMoon_AbyssCharacter::AMoon_AbyssCharacter(const FObjectInitializer& ObjectIniti
 
 	StateText = CreateDefaultSubobject<UTextRenderComponent>(TEXT("Movement State Representation"));
 	StateText->SetupAttachment(RootComponent);
-	
-
-	//PlayerMovement = CreateDefaultSubobject<UMainCharacterMovementComponent>(TEXT("PlayerMovement"));
-	//PlayerMovement->UpdatedComponent = RootComponent;
 }
 
 
@@ -71,7 +67,7 @@ void AMoon_AbyssCharacter::BeginPlay() {
 
 
 	// Magic Numbers
-	//PlayerCamera->SetRelativeLocation(FVector(-400, 100, 100));
+	PlayerCamera->SetRelativeLocation(FVector(-400, 100, 100));
 
 
 
@@ -185,4 +181,8 @@ void AMoon_AbyssCharacter::OnOverlapEnd(UPrimitiveComponent* OverlappedComponent
 		PlayerCamera->SetCameraMode(ECameraMode::Center);
 	}
 
+}
+
+UMainCharacterMovementComponent* AMoon_AbyssCharacter::GetCustomMovementComponent() {
+	return this->GetMovementComponent();
 }

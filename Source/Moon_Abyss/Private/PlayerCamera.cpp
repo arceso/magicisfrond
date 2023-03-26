@@ -29,19 +29,25 @@ void UPlayerCamera::BeginPlay() {
 	if (!CameraPositions.IsEmpty()) {
 		TargetCameraPosition = CameraPositions[static_cast<int>(ECameraMode::Center)].Position;
 	}
+	OldLocation = GetComponentLocation();
 	CurrentCameraPosition = TargetCameraPosition;
 }
 
-void UPlayerCamera::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) {
-	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+void UPlayerCamera::TickComponent(float dT, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) {
+	Super::TickComponent(dT, TickType, ThisTickFunction);
 	if (!CameraPositions.IsEmpty()) {
 		FCameraPosition& Pos = CameraPositions[static_cast<int>(mMode)];
-		if (bCameraUpdated) baseTransition(DeltaTime, Pos.fAccTimeToLerp, Pos.fTimeToLerp, Pos.GetPosition(CameraSide));
+		if (bCameraUpdated) baseTransition(dT, Pos.fAccTimeToLerp, Pos.fTimeToLerp, Pos.GetPosition(CameraSide));
 	}
 	SetToValidTargetPosition();
+	
+	//TargetCameraPosition = FMath::VInterpTo(this->GetComponentTransform().InverseTransformVector(OldLocation), TargetCameraPosition, dT, 0.1f);
+	// GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, GetRelativeTransform ().TransformPositionNoScale(TargetCameraPosition).ToString());
+	// GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Blue, OldLocation.ToString());
 
 	SetRelativeLocation(TargetCameraPosition);
 	SetRelativeRotation(TargetCameraRotation);
+	OldLocation = this->GetComponentLocation();
 }
 
 void UPlayerCamera::SetRelPosToProperSide(float DeltaT) {

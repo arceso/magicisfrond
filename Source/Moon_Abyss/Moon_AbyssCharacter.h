@@ -51,10 +51,9 @@ class AMoon_AbyssCharacter : public ACharacter
 
 public:
 	AMoon_AbyssCharacter(const FObjectInitializer& ObjectInitializer);
+	UMainCharacterMovementComponent* GetCustomMovementComponent();
 	
 protected:
-
-
 	void SetUpWallrun(ESide side, FVector& fhr);
 	virtual void Landed(const FHitResult& Hit) override;
 	virtual void NotifyHit(class UPrimitiveComponent* MyComp, AActor* Other, class UPrimitiveComponent* OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit) override;
