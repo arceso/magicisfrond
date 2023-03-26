@@ -161,6 +161,7 @@ void AMoon_AbyssCharacter::Tick(float DeltaSeconds) {
 	if (GetMovementComponent()->isCrouching()) textstate = FText::FromString("Crouching");
 	else if (GetMovementComponent()->isSliding()) textstate = FText::FromString("Sliding");
 	else if (GetMovementComponent()->isFalling()) textstate = FText::FromString("Falling");
+	else if (GetMovementComponent()->isGrappling()) textstate = FText::FromString("Grappling");
 	else if (GetMovementComponent()->isWallruning()) textstate = FText::FromString("Wallruning");
 	else if (GetMovementComponent()->isSprinting()) textstate = FText::FromString("Sprinting");
 	else if (GetMovementComponent()->isWalking()) textstate = FText::FromString("Walking");

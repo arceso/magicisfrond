@@ -12,6 +12,7 @@ AMyPlayerCameraManager::AMyPlayerCameraManager() {
 	ViewRollMin = 0.f;
 	ViewRollMax = 0.f;
 }
+
 void AMyPlayerCameraManager::BeginPlay() {
 
 	POVLastLocation = GetOwningPlayerController()->GetPawn()->GetTargetLocation();
@@ -41,7 +42,9 @@ void AMyPlayerCameraManager::UpdateViewTarget(FTViewTarget& OutVT, float dT)
 
 			POVLastLocation = OutVT.POV.Location;
 		}
+		float pitch(OutVT.POV.Rotation.Pitch);
 		OutVT.POV.Rotation = (MyCharacter->GetActorLocation() - OutVT.POV.Location).Rotation();
+		OutVT.POV.Rotation.Pitch = pitch;
 
 		FVector Offset = FMath::Lerp(FVector::ZeroVector, TargetCrouchOffset, FMath::Clamp(CrouchBlendTime / CrouchBlendDuration, 0.f, 1.f));
 		if (CMC->isCrouching()) {

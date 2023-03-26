@@ -2,6 +2,7 @@
 
 
 #include "MainCharacterMovementComponent.h"
+#include "MyPlayerCameraManager.h"
 #include "GameFramework/Character.h"
 #include "Components/CapsuleComponent.h"
 #include "CustomMovementFlags.h"
@@ -35,6 +36,10 @@ void UMainCharacterMovementComponent::PhysCustom(float dT, int32 iterations) {
 		break;
 	case CMOVE_Wallruning:
 		PhysWallrun(dT, iterations);
+		break;
+	case CMOVE_Grappling:
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("CustomPhys"));
+		PhysGrapple(dT, iterations);
 		break;
 	default:
 		UE_LOG(LogTemp, Fatal, TEXT("Invalid Movement Mode"));
@@ -310,7 +315,7 @@ void UMainCharacterMovementComponent::CrouchingJump(const FVector2D& input) {
 
 void UMainCharacterMovementComponent::GrapplingJump(const FVector2D& input)
 {
-	throw std::logic_error("The method or operation is not implemented.");
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("IMPLEMENT GrapplingJump, DUMBASS!"));
 }
 
 void UMainCharacterMovementComponent::Move(const FVector2D& input) {
@@ -473,7 +478,6 @@ void UMainCharacterMovementComponent::StartWallrun(ESide Side, FVector normal) {
 }
 
 void UMainCharacterMovementComponent::EndWallrun(EEndReason reason, const FHitResult* Hit) {
-	//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Red, TEXT("EndWallrun"));
 	bCanAirJump = true;
 
 	//GetPawnOwner()->GetController()->SetControlRotation(GetPawnOwner()->GetActorRotation());
@@ -488,8 +492,8 @@ void UMainCharacterMovementComponent::EndWallrun(EEndReason reason, const FHitRe
 		// Do nothing
 		break;
 	case EEndReason::Jump:
-		if (WRData.Side == ESide::Left) JumpAngle = FRotator(0, this->WallrunJumpAngle, 0);
-		else if (WRData.Side == ESide::Right) JumpAngle = FRotator(0, this->WallrunJumpAngle * -1, 0);
+		if (WRData.Side == ESide::Left) JumpAngle = FRotator(0, WallrunJumpAngle, 0);
+		else if (WRData.Side == ESide::Right) JumpAngle = FRotator(0, WallrunJumpAngle * -1, 0);
 		GetCharacterOwner()->LaunchCharacter((WRData.NormalHit * WR_EndJumpAwayForce + FVector::UpVector * WR_JumpUpForce), true, true);
 		break;
 	case EEndReason::Hit:
@@ -516,7 +520,83 @@ void UMainCharacterMovementComponent::OnMovementUpdated(float DeltaSeconds, cons
 }
 
 void UMainCharacterMovementComponent::CapsuleTouched(UPrimitiveComponent* OverlappedComp, AActor* Other, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult) {
-	////GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Red, FString::Printf(TEXT("HIT %f"), (MyController->WRData.Side == ESide::LEFT ? 1.f : -1.f)));
+	GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Red, TEXT("HIT %f"));
 
 	// DrawDebugLine(GetWorld(), GetActorLocation(), Hit.ImpactPoint, FColor::Red, false, 10.f, 5, 5.f);
+}
+
+
+void UMainCharacterMovementComponent::StartGrapple() {
+	FHitResult fhr;
+
+	APlayerCameraManager* camRef = GetWorld()->GetFirstPlayerController()->PlayerCameraManager;
+
+
+	if (GetWorld()->LineTraceSingleByChannel(
+		fhr,
+		camRef->GetCameraLocation(),
+		camRef->GetCameraLocation() + camRef->GetCameraRotation().Vector() * 5000,
+		ECC_WorldStatic,
+		SelfExcludeQueryParams
+	)) {
+		DrawDebugLine(GetWorld(), fhr.Location, UpdatedComponent->GetComponentLocation(), FColor::Red, false, 15.f, 0, 5);
+		GrappleLocation = fhr.Location;
+
+		Velocity += (fhr.Location - UpdatedComponent->GetComponentLocation()).GetUnsafeNormal() * 500;
+
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("StartGrapple"));
+		SetMovementMode(MOVE_Custom, CMOVE_Grappling);
+	}
+}
+
+void UMainCharacterMovementComponent::EndGrapple() {
+	SetMovementMode(MOVE_Falling);
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("End Grapple"));
+}
+
+void UMainCharacterMovementComponent::PhysGrapple(float dT, int32 Iterations) {
+	//EndGrapple();
+	if (dT < MIN_TICK_TIME) return;
+	RestorePreAdditiveRootMotionVelocity();
+
+	constexpr float grappleSpeed = 2500;
+
+	FVector ToGrappleVector = GrappleLocation - UpdatedComponent->GetComponentLocation();
+
+	float LookAndGrappleSimmilarity = FVector::DotProduct(UpdatedComponent->GetForwardVector(), ToGrappleVector.GetUnsafeNormal());
+
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Purple, FString::Printf(TEXT("LookAndGrappleSimmilarity: %f"), LookAndGrappleSimmilarity));
+
+	if(LookAndGrappleSimmilarity < 0) {
+		EndGrapple();
+		StartNewPhysics(dT, Iterations);
+		return;
+	} else {
+		Velocity += FMath::VInterpTo(
+			UpdatedComponent->GetForwardVector(), 
+			ToGrappleVector.GetUnsafeNormal(), 
+			LookAndGrappleSimmilarity, 1.f
+		) * grappleSpeed * dT;
+	}
+
+	//Velocity += Slide_GravityForce * FVector::DownVector * dT;
+
+	if (!HasAnimRootMotion() && !CurrentRootMotion.HasOverrideVelocity()) {
+		CalcVelocity(dT, Slide_Friction, true, GetMaxBrakingDeceleration());
+	}
+	ApplyRootMotionToVelocity(dT);
+
+	Iterations++;
+	bJustTeleported = false;
+
+	FVector OldLocation = UpdatedComponent->GetComponentLocation();
+	FQuat OldRotation = UpdatedComponent->GetComponentRotation().Quaternion();
+	FHitResult Hit(1.f);
+	FVector Adjusted = Velocity * dT;
+
+	
+	//FVector VelPlaneDir = FVector::VectorPlaneProject(Velocity, Surface.Normal).GetSafeNormal();
+	//FQuat NewRotation = FRotationMatrix::MakeFromXZ(VelPlaneDir, Surface.Normal).ToQuat();
+	SafeMoveUpdatedComponent(Adjusted, UpdatedComponent->GetComponentRotation(), true, Hit);
+	
 }

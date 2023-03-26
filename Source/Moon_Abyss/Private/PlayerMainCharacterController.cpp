@@ -57,17 +57,5 @@ void APlayerMainCharacterController::Sprint(const FInputActionValue& Value) {
 }
 
 void APlayerMainCharacterController::Grapple(const FInputActionValue& Value) {
-	if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Red, TEXT("Graple time!") );
-	FHitResult OutHit;
-	FCollisionQueryParams TraceParams(FName(TEXT("InteractTrace")), false, GetCharacter());
-	if (GetWorld()->LineTraceSingleByChannel(
-		OutHit,
-		camera->GetComponentLocation(),
-		camera->GetComponentLocation() + camera->GetForwardVector() * 5000,
-		ECC_WorldStatic,
-		TraceParams
-	)) {
-		DrawDebugLine(GetWorld(), OutHit.Location, GetCharacter()->GetActorLocation(), FColor::Red, false, 15.f, 0, 5);
-		GetCharacter()->GetMovementComponent();
-	}
+	CMC->StartGrapple();
 }

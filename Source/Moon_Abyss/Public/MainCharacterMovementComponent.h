@@ -157,6 +157,11 @@ public:
 	void Grappling(const FVector2D& input);
 	void GrapplingJump(const FVector2D& input);
 
+	void StartGrapple();
+	void EndGrapple();
+	void PhysGrapple(float dT, int32 iterations);
+
+
 	// virtual void Landed() override;
 	virtual void PhysCustom(float dT, int32 iterations) override;
 	virtual bool IsMovingOnGround() const override;
@@ -180,4 +185,5 @@ protected:
 	
 private:
 	void SprintingJump(const FVector2D& input);
+	FVector GrappleLocation;
 };
