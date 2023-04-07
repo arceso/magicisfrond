@@ -46,13 +46,13 @@ void AMyPlayerCameraManager::UpdateViewTarget(FTViewTarget& OutVT, float dT)
 		OutVT.POV.Rotation = (MyCharacter->GetActorLocation() - OutVT.POV.Location).Rotation();
 		OutVT.POV.Rotation.Pitch = pitch;
 
-		FVector Offset = FMath::Lerp(FVector::ZeroVector, TargetCrouchOffset, FMath::Clamp(CrouchBlendTime / CrouchBlendDuration, 0.f, 1.f));
+		/*FVector Offset = FMath::Lerp(FVector::ZeroVector, TargetCrouchOffset, FMath::Clamp(CrouchBlendTime / CrouchBlendDuration, 0.f, 1.f));
 		if (CMC->isCrouching()) {
 			CrouchBlendTime = FMath::Clamp(CrouchBlendTime + dT, 0.f, CrouchBlendDuration);
 			Offset -= TargetCrouchOffset;
 		} else CrouchBlendTime = FMath::Clamp(CrouchBlendTime - dT, 0.f, CrouchBlendDuration);
 
 		if (CMC->IsMovingOnGround()) OutVT.POV.Location += Offset;
-		POVLastLocation = OutVT.POV.Location;
+		POVLastLocation = OutVT.POV.Location;*/
 	}
 }

@@ -30,7 +30,10 @@ void APlayerMainCharacterController::SetupPlayerInputComponent(class UInputCompo
 		EnhancedInputComponent->BindAction(dbjump, ETriggerEvent::Triggered, this, &APlayerMainCharacterController::DBJump);
 		EnhancedInputComponent->BindAction(CrouchAction, ETriggerEvent::Triggered, this, &APlayerMainCharacterController::Crouch);
 		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Triggered, this, &APlayerMainCharacterController::Sprint);
-		EnhancedInputComponent->BindAction(GrappleAction, ETriggerEvent::Triggered, this, &APlayerMainCharacterController::Grapple);
+		EnhancedInputComponent->BindAction(StartGrappleAction, ETriggerEvent::Triggered, this, &APlayerMainCharacterController::StartGrapple);
+		EnhancedInputComponent->BindAction(EndGrappleAction, ETriggerEvent::Triggered, this, &APlayerMainCharacterController::EndGrapple);
+		EnhancedInputComponent->BindAction(RetrieveGrappleAction, ETriggerEvent::Triggered, this, &APlayerMainCharacterController::RetrieveGrapple);
+		EnhancedInputComponent->BindAction(ContinueGrappleAction, ETriggerEvent::Triggered, this, &APlayerMainCharacterController::ContinueGrapple);
 	}
 }
 
@@ -56,6 +59,19 @@ void APlayerMainCharacterController::Sprint(const FInputActionValue& Value) {
 	if (Value.Get<bool>()) CMC->Sprint(true);
 }
 
-void APlayerMainCharacterController::Grapple(const FInputActionValue& Value) {
+void APlayerMainCharacterController::StartGrapple(const FInputActionValue& Value) {
+	GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Cyan, TEXT("StartGrapple"));
 	CMC->StartGrapple();
+}
+void APlayerMainCharacterController::EndGrapple(const FInputActionValue& Value) {
+	GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Cyan, TEXT("EndGrapple"));
+	CMC->EndGrapple();
+}
+void APlayerMainCharacterController::RetrieveGrapple(const FInputActionValue& Value) {
+	GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Cyan, TEXT("RetrieveGrapple"));
+	CMC->RetractGrapple();
+}
+void APlayerMainCharacterController::ContinueGrapple(const FInputActionValue& Value) {
+	GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Cyan, TEXT("ContinueGrapple"));
+	CMC->ContinueGrapple();
 }

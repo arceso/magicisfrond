@@ -26,6 +26,8 @@ public:
 	UMainCharacterMovementComponent() {
 		NavAgentProps.bCanCrouch = true;
 	}
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Movement: Wallrun", meta = (AllowPrivateAccess = "true"))
+	FVector GrappleLocation;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Movement: Wallrun", meta = (AllowPrivateAccess = "true"))
 	float MAX_DISTANCE;
@@ -62,7 +64,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Movement: Slide", meta = (AllowPrivateAccess = "true"))
 	float fBrackingForceReduced;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Movement: Slide", meta = (AllowPrivateAccess = "true"))
-	float fAirSlideForce;
+	float SlideAirHorizontalBoost;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Movement: Slide", meta = (AllowPrivateAccess = "true"))
+	float SlideAirHeightLost;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Movement: Sprint", meta = (AllowPrivateAccess = "true"))
 	float fSprintMaxSpeed;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Movement: Walk", meta = (AllowPrivateAccess = "true"))
@@ -93,10 +97,37 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Movement: XWR", meta = (AllowPrivateAccess = "true"))	
 	float WR_JumpUpForce = 1000.f;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Movement: XWR", meta = (AllowPrivateAccess = "true"))	
-	float WR_EndHitYawForce = 1000.f;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Movement: XWR", meta = (AllowPrivateAccess = "true"))	
+		float WR_EndHitYawForce = 1000.f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Movement: XWR", meta = (AllowPrivateAccess = "true"))
 	float WR_EndHitUpForce = 2000.f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Movement: XWR", meta = (AllowPrivateAccess = "true"))
+		float WR_Speed = 2500;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Movement: XWR", meta = (AllowPrivateAccess = "true"))
+	float WR_PullStrength = 100;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Movement: XWR", meta = (AllowPrivateAccess = "true"))
+	float Grapple_GravityForce = 10;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Movement: XWR", meta = (AllowPrivateAccess = "true"))
+	float CoolDownBetweenWallruns = 0.5f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Movement: Grapple", meta = (AllowPrivateAccess = "true"))
+	float Grapple_PullForceDistanceMod = 1000;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Movement: Grapple", meta = (AllowPrivateAccess = "true"))
+	float Grapple_Speed = 2500;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Movement: Grapple", meta = (AllowPrivateAccess = "true"))
+	float Grapple_MagneticAttraction = 100.f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Movement: Grapple", meta = (AllowPrivateAccess = "true"))
+	float Grapple_HandMagnetism = 1000.f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Movement: Grapple", meta = (AllowPrivateAccess = "true"))
+	float Grapple_ArmMagnetism = 1500.f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Movement: Grapple", meta = (AllowPrivateAccess = "true"))
+	float Grapple_MagneticConstant = 1.f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Movement: Grapple", meta = (AllowPrivateAccess = "true"))
+	float Grapple_AirFriction = .095f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Movement: Grapple", meta = (AllowPrivateAccess = "true"))
+	float Grapple_RadiusReductionVelocityConstant = 2;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Movement: Grapple", meta = (AllowPrivateAccess = "true"))
+	float GrappleStartBoost;
 
+	float MaxRadius;
 
 	struct WR_DATA {
 		bool WallRuning;
@@ -158,7 +189,9 @@ public:
 	void GrapplingJump(const FVector2D& input);
 
 	void StartGrapple();
+	void ContinueGrapple();
 	void EndGrapple();
+	void RetractGrapple();
 	void PhysGrapple(float dT, int32 iterations);
 
 
@@ -176,14 +209,20 @@ public:
 		bIsSprinting,
 		bIsSliding,
 		bIsCrouching,
-		bWantToEndCrouch;
+		bWantToEndCrouch,
+		bGrappleDeployed;
 
 	FCollisionQueryParams SelfExcludeQueryParams;
+	float acc;
 
 protected:
 	FHitResult OutHit;
 	
 private:
 	void SprintingJump(const FVector2D& input);
-	FVector GrappleLocation;
+	class AMoon_AbyssCharacter* MainCharacter;
+	void DoGrapple(const FVector& atLocation);
+	bool areAllConditionsMetForWallrun(bool isStart);
+	FTimerHandle WallRunCDHandle;
+	bool bCanDoWallrun;
 };

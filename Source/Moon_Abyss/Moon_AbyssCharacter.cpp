@@ -75,6 +75,8 @@ void AMoon_AbyssCharacter::BeginPlay() {
 	EnemySelectorInstance->AddToViewport();
 	EnemySelectorInstance->SetVisibility(ESlateVisibility::Hidden);
 
+	EnemySelectorInstance->SetDesiredSizeInViewport(FVector2D(40.f, 40.f));
+
 	CrosshairInstance = CreateWidget<UUserWidget>(GetWorld(), W_Crosshair);
 	CrosshairInstance->AddToViewport();
 	UGameViewportClient* Viewport = GetWorld()->GetGameViewport();
@@ -102,43 +104,44 @@ void AMoon_AbyssCharacter::Landed(const FHitResult& Hit) {
 
 void AMoon_AbyssCharacter::NotifyHit(class UPrimitiveComponent* MyComp, AActor* Other, class UPrimitiveComponent* OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit) {
 	float VectorSimilarity = GetActorRightVector().Dot(HitNormal);
-	GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Red, FString::Printf(TEXT("HIT %f"), VectorSimilarity));
-
-
 	if (!PlayerMovement->isWallruning()) {
-		if (VectorSimilarity < -0.5f) {
+		if (VectorSimilarity < -0.1f) {
 			SetUpWallrun(ESide::Right, HitNormal);
-		} else if (VectorSimilarity > 0.5f) {
+		} else if (VectorSimilarity > 0.1f) {
  			SetUpWallrun(ESide::Left, HitNormal);
 		}
-	} else if (VectorSimilarity > -0.50f && VectorSimilarity < 0.5f) PlayerMovement->EndWallrun(EEndReason::WalkableGround, &Hit);
+	} else if (VectorSimilarity > -0.1f && VectorSimilarity < 0.1f) PlayerMovement->EndWallrun(EEndReason::WalkableGround, &Hit);
 }
 
 void AMoon_AbyssCharacter::updateDynamicUi() {
 	const int length = 5000;
-	struct FHitResult OutHit;
 	APlayerCameraManager* camManager = GetWorld()->GetFirstPlayerController()->PlayerCameraManager;
 	const FVector Start = camManager->GetCameraLocation();
 	const FVector End = Start + camManager->GetCameraRotation().Vector() * length;
 	FCollisionQueryParams TraceParams(FName(TEXT("InteractTrace")), true, NULL);
 	TraceParams.AddIgnoredActor(this);
-	bool Target = GetWorld()->LineTraceSingleByChannel(OutHit, Start, End, ECC_WorldStatic, TraceParams);
 
-	if (Target && OutHit.GetActor()->ActorHasTag(FName("Enemy"))) {
-		FVector2D ScreenLocation;
-		if (UGameplayStatics::ProjectWorldToScreen(GetLocalViewingPlayerController(), OutHit.GetActor()->GetActorLocation(), ScreenLocation, false)) {
-			if (EnemySelectorInstance->GetVisibility() == ESlateVisibility::Hidden) {
-				EnemySelectorInstance->SetVisibility(ESlateVisibility::Visible);
-			}
-			FVector2D ESSize = EnemySelectorInstance->GetCachedGeometry().GetLocalSize();
-			EnemySelectorInstance->SetPositionInViewport(ScreenLocation - (ESSize / 2));
-		}
+	if (GetWorld()->LineTraceSingleByChannel(OutHit, Start, End, ECC_GameTraceChannel1, TraceParams)) {
+		if (OutHit.GetActor()->ActorHasTag(FName("Enemy"))) UpdateTarget(*EnemySelectorInstance); 
+		else if (OutHit.GetActor()->ActorHasTag(FName("Grappable"))) UpdateTarget(*EnemySelectorInstance);
 	}
 	else if (EnemySelectorInstance->GetVisibility() == ESlateVisibility::Visible) {
+		isTargetUIOnScreen = false;
 		EnemySelectorInstance->SetVisibility(ESlateVisibility::Hidden);
 	}
 }
 
+void AMoon_AbyssCharacter::UpdateTarget(UUserWidget& widget) {
+	isTargetUIOnScreen = true;
+	FVector2D ScreenLocation;
+	if (UGameplayStatics::ProjectWorldToScreen(GetLocalViewingPlayerController(), OutHit.GetActor()->GetActorLocation(), ScreenLocation, false)) {
+		if (widget.GetVisibility() == ESlateVisibility::Hidden) {
+			widget.SetVisibility(ESlateVisibility::Visible);
+		}
+		FVector2D ESSize = widget.GetCachedGeometry().GetLocalSize();
+		widget.SetPositionInViewport(ScreenLocation - (ESSize / 2));
+	}
+}
 
 void AMoon_AbyssCharacter::PostInitializeComponents() {
 	Super::PostInitializeComponents();

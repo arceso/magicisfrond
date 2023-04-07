@@ -22,13 +22,14 @@ class AMoon_AbyssCharacter : public ACharacter
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = UI, meta = (AllowPrivateAccess = "true"))
-		TSubclassOf<UUserWidget> W_EnemyTargeted;
+	TSubclassOf<UUserWidget> W_EnemyTargeted;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = UI, meta = (AllowPrivateAccess = "true"))
-		TSubclassOf<UUserWidget> W_Crosshair;
+	TSubclassOf<UUserWidget> W_Crosshair;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = UI, meta = (AllowPrivateAccess = "true"))
-		UPlayerCamera* PlayerCamera;
+	UPlayerCamera* PlayerCamera;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = UI, meta = (AllowPrivateAccess = "true"))
 	class UCapsuleComponent* TriggerCapsule;
 
@@ -52,6 +53,9 @@ class AMoon_AbyssCharacter : public ACharacter
 public:
 	AMoon_AbyssCharacter(const FObjectInitializer& ObjectInitializer);
 	UMainCharacterMovementComponent* GetCustomMovementComponent();
+	FHitResult OutHit;
+	bool isTargetUIOnScreen;
+	FVector GrappleTarget;
 	
 protected:
 	void SetUpWallrun(ESide side, FVector& fhr);
@@ -59,6 +63,7 @@ protected:
 	virtual void NotifyHit(class UPrimitiveComponent* MyComp, AActor* Other, class UPrimitiveComponent* OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit) override;
 	void updateDynamicUi();
 	virtual void Tick(float DeltaSeconds) override;
+	void UpdateTarget(UUserWidget& widget);
 	UUserWidget* EnemySelectorInstance;
 	UUserWidget* CrosshairInstance;
 

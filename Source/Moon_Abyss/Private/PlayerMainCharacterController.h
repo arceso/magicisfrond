@@ -26,8 +26,10 @@ public:
 	void DBJump(const FInputActionValue& Value);
 
 	//Grapple stuff
-	void Grapple(const FInputActionValue& Value);
-
+	void StartGrapple(const FInputActionValue& Value);
+	void ContinueGrapple(const FInputActionValue& Value);
+	void RetrieveGrapple(const FInputActionValue& Value);
+	void EndGrapple(const FInputActionValue& Value);
 	// Tech stuff
 	APlayerMainCharacterController();
 	void BeginPlay()override;
@@ -50,7 +52,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = InputActions, meta = (AllowPrivateAccess = "true"))
 		class UInputAction* SprintAction;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = InputActions, meta = (AllowPrivateAccess = "true"))
-		class UInputAction* GrappleAction;
+		class UInputAction* StartGrappleAction;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = InputActions, meta = (AllowPrivateAccess = "true"))
+		class UInputAction* EndGrappleAction;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = InputActions, meta = (AllowPrivateAccess = "true"))
+		class UInputAction* RetrieveGrappleAction;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = InputActions, meta = (AllowPrivateAccess = "true"))
+		class UInputAction* ContinueGrappleAction;
 
 	/** MappingContext */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = InputMappings, meta = (AllowPrivateAccess = "true"))
